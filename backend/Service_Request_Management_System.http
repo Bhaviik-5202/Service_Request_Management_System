@@ -1,0 +1,6 @@
+@Service_Request_Management_System_HostAddress = http://localhost:5083
+
+GET {{Service_Request_Management_System_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
