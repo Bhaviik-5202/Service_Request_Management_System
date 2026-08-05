@@ -1,0 +1,426 @@
+You are a Senior Full Stack Software Engineer and Software Architect.
+
+I have imported my complete IT Service Request Management System project from GitHub into Replit.
+
+Technology Stack:
+
+Frontend:
+- React + Vite
+- JavaScript (No TypeScript)
+- Tailwind CSS
+
+Backend:
+- ASP.NET Core Web API (.NET 9)
+- C#
+- Entity Framework Core
+- SQL Server
+- JWT Authentication
+
+====================================================
+PROJECT GOAL
+====================================================
+
+Your task is NOT to redesign the project.
+
+Your task is to clean, optimize, complete, and stabilize the entire project while preserving all existing business functionality.
+
+Work phase by phase.
+
+DO NOT jump directly into adding new features.
+
+====================================================
+PHASE 1 - PROJECT ANALYSIS
+====================================================
+
+Analyze the entire frontend and backend.
+
+Create a complete dependency graph.
+
+Identify:
+
+• Unused Components
+• Unused Pages
+• Unused Hooks
+• Unused Contexts
+• Unused APIs
+• Unused Services
+• Unused Utilities
+• Unused CSS
+• Unused Assets
+• Unused Images
+• Unused Icons
+• Unused Packages
+• Duplicate Components
+• Duplicate Functions
+• Dead Code
+• Commented Code
+• Console.log
+• Temporary Code
+• AI Generated Boilerplate
+• Mock Data
+• Fake Data
+• Static Demo Data
+• Placeholder Data
+
+====================================================
+PHASE 2 - CLEANUP
+====================================================
+
+Safely remove every unused file.
+
+Safely remove every duplicate.
+
+Safely remove every dead code.
+
+Safely remove every unused dependency.
+
+Safely remove every unused import.
+
+Safely remove every unused variable.
+
+Safely remove every unnecessary package.
+
+Keep only production-ready code.
+
+DO NOT remove anything currently being used.
+
+====================================================
+PHASE 3 - FRONTEND CLEANUP
+====================================================
+
+Refactor the frontend.
+
+Improve:
+
+Folder structure
+
+Component structure
+
+Reusable components
+
+Reusable hooks
+
+Reusable utilities
+
+Routing
+
+Context
+
+API layer
+
+Loading states
+
+Error handling
+
+Form validation
+
+Code readability
+
+Naming conventions
+
+Performance
+
+Responsive layout
+
+Maintainability
+
+Remove:
+
+Mock Data
+
+Static JSON
+
+Fake API responses
+
+Hardcoded arrays
+
+Temporary UI
+
+Placeholder cards
+
+Dummy dashboard values
+
+Dummy notifications
+
+Dummy users
+
+Dummy tickets
+
+Dummy reports
+
+Any frontend data that is not coming from the backend.
+
+====================================================
+PHASE 4 - BACKEND COMPLETION
+====================================================
+
+Analyze backend.
+
+Complete every unfinished module.
+
+Complete every missing API.
+
+Complete every missing CRUD operation.
+
+Complete every repository.
+
+Complete every service.
+
+Complete every DTO.
+
+Complete every validation.
+
+Complete every middleware.
+
+Complete authentication.
+
+Complete authorization.
+
+Complete role management.
+
+Complete exception handling.
+
+Complete logging.
+
+Complete database integration.
+
+====================================================
+PHASE 5 - DATABASE
+====================================================
+
+Review database schema.
+
+Ensure:
+
+Primary Keys
+
+Foreign Keys
+
+Relationships
+
+Indexes
+
+Constraints
+
+Cascade Rules
+
+Entity Configurations
+
+Migrations
+
+Everything should be production-ready.
+
+====================================================
+PHASE 6 - REMOVE MOCK DATA
+====================================================
+
+Remove ALL frontend mock/static data.
+
+Every page should fetch real data from backend APIs.
+
+Examples:
+
+Dashboard
+
+Tickets
+
+Users
+
+Departments
+
+Services
+
+Categories
+
+Priorities
+
+Statuses
+
+Assets
+
+Reports
+
+Notifications
+
+Activity Logs
+
+Comments
+
+Everything must use backend APIs.
+
+No hardcoded values should remain.
+
+====================================================
+PHASE 7 - API INTEGRATION
+====================================================
+
+After backend APIs are completed,
+
+connect every frontend page to backend.
+
+Every CRUD operation must use APIs.
+
+Use proper:
+
+GET
+
+POST
+
+PUT
+
+PATCH
+
+DELETE
+
+Handle:
+
+Loading
+
+Error
+
+Empty State
+
+Unauthorized
+
+Forbidden
+
+Validation Errors
+
+Server Errors
+
+====================================================
+PHASE 8 - BUG FIXES
+====================================================
+
+Fix every issue.
+
+Including:
+
+Console Errors
+
+Runtime Errors
+
+API Errors
+
+404
+
+500
+
+401
+
+403
+
+Null Reference
+
+Undefined Errors
+
+Validation Errors
+
+Build Errors
+
+Routing Issues
+
+State Issues
+
+JWT Issues
+
+CORS Issues
+
+Performance Issues
+
+Memory Leaks
+
+====================================================
+PHASE 9 - CODE QUALITY
+====================================================
+
+Apply:
+
+SOLID Principles
+
+DRY
+
+KISS
+
+Clean Architecture
+
+Reusable Components
+
+Reusable Services
+
+Reusable Utilities
+
+Consistent Folder Structure
+
+Consistent Naming
+
+====================================================
+PHASE 10 - TESTING
+====================================================
+
+Before finishing,
+
+verify:
+
+Frontend builds successfully.
+
+Backend builds successfully.
+
+No compilation errors.
+
+No runtime errors.
+
+No console warnings.
+
+No duplicate code.
+
+No unused code.
+
+No static data.
+
+No mock data.
+
+Every CRUD works.
+
+Authentication works.
+
+Authorization works.
+
+Role-based access works.
+
+Database works.
+
+API integration works.
+
+====================================================
+IMPORTANT RULES
+====================================================
+
+Do NOT redesign the UI.
+
+Do NOT change business logic.
+
+Do NOT remove existing features.
+
+Do NOT add unnecessary libraries.
+
+Do NOT create fake APIs.
+
+Do NOT create dummy data.
+
+Do NOT leave TODO comments.
+
+Do NOT leave placeholder code.
+
+Do NOT stop after cleanup.
+
+Complete one phase before moving to the next.
+
+At the end of each phase:
+
+1. Explain what was changed.
+2. Show modified files.
+3. Confirm the project still builds successfully.
+4. Then continue to the next phase.
+
+The final result must be a clean, production-ready IT Service Request Management System where all frontend pages consume real backend APIs, all unused code is removed, and the backend is fully completed.
