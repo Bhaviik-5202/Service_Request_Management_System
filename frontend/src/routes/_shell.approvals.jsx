@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { getApprovals, updateApproval, getServiceRequests } from "@/services/api";
+import { getApprovals, decideApproval, getServiceRequests } from "@/services/api";
 import { Can, useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/_shell/approvals")({
 });
 
 function ApprovalsPage() {
-  const { role, user } = useAuth();
+  const { user } = useAuth();
   const [localApprovals, setLocalApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialog, setDialog] = useState(null);
@@ -74,7 +74,7 @@ function ApprovalsPage() {
           department: a.serviceRequest?.department?.departmentName || sr?.department?.departmentName || "IT",
           priority: a.serviceRequest?.priority || sr?.priority || "Medium",
           status: a.status || "Pending",
-          decidedBy: a.decidedByUser ? (a.decidedByUser.fullName || a.decidedByUser.name) : "HOD",
+          decidedBy: a.decidedByUser ? (a.decidedByUser.fullName || a.decidedByUser.name) : "—",
           decidedOn: a.decidedAt ? new Date(a.decidedAt).toISOString() : null,
           submitted: a.submittedAt ? new Date(a.submittedAt).toISOString() : new Date().toISOString(),
           remarks: a.remarks || "",
@@ -99,16 +99,11 @@ function ApprovalsPage() {
     setSubmitting(true);
 
     try {
-      const updatePayload = {
-        approvalId: Number(dialog.approval.approvalId),
-        requestId: Number(dialog.approval.requestId),
+      await decideApproval(dialog.approval.approvalId, {
         status: dialog.action,
         decidedByUserId: user?.userId || 1,
-        decidedAt: new Date().toISOString(),
-        remarks: remarks || "",
-      };
-
-      await updateApproval(dialog.approval.approvalId, updatePayload);
+        remarks: remarks || null,
+      });
       toast.success(`${dialog.approval.requestNo} ${dialog.action.toLowerCase()}`);
       await loadData();
     } catch (err) {

@@ -250,7 +250,7 @@ function RequestsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
-                {(statusList.length > 0 ? statusList : ["Pending", "Assigned", "In Progress", "Completed", "Closed", "Cancelled"]).map((s) => (
+                {statusList.map((s) => (
                   <SelectItem key={s} value={s}>
                     {s}
                   </SelectItem>

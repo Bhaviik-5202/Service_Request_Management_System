@@ -7,6 +7,7 @@ namespace Service_Request_Management_System.Controllers
 {
     [Route("api/[controller]/[Action]")]
     [ApiController]
+    [Authorize]
     public class AssetsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -272,7 +273,6 @@ namespace Service_Request_Management_System.Controllers
             }
 
             asset.IsDeleted = true;
-            asset.DeletedAt = DateTime.UtcNow;
             asset.Status = "Retired";
 
             _context.Entry(asset).State = EntityState.Modified;
@@ -297,7 +297,6 @@ namespace Service_Request_Management_System.Controllers
             }
 
             asset.IsDeleted = false;
-            asset.DeletedAt = null;
             asset.Status = "Available";
             asset.UpdatedAt = DateTime.UtcNow;
 

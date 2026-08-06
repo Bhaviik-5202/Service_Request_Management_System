@@ -1,10 +1,27 @@
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || "http://localhost:5083/api";
+const STORAGE_KEY = "servicedesk.auth";
+
+function getAuthToken() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed.token || null;
+    }
+  } catch {
+    // ignore corrupt storage
+  }
+  return null;
+}
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
+  const token = getAuthToken();
+
   const config = {
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
     ...options,
@@ -13,9 +30,8 @@ async function request(endpoint, options = {}) {
   const response = await fetch(url, config);
 
   if (response.status === 401) {
-    // Clear session and redirect to login on unauthorized
-    localStorage.removeItem("servicedesk.auth");
-    sessionStorage.removeItem("servicedesk.auth");
+    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
     window.location.href = "/login";
     throw new Error("Unauthorized. Please sign in again.");
   }
@@ -439,13 +455,6 @@ export async function createApproval(approvalData) {
   });
 }
 
-export async function updateApproval(id, approvalData) {
-  return await request(`/Approvals/PutApproval/${id}`, {
-    method: "PUT",
-    body: JSON.stringify({ ...approvalData, approvalId: Number(id) }),
-  });
-}
-
 export async function decideApproval(id, decision) {
   return await request(`/Approvals/DecideApproval/${id}/decide`, {
     method: "PUT",
@@ -494,7 +503,6 @@ export async function deleteNotification(id) {
   });
 }
 
-// Fixed URL: matches the actual backend route [HttpPut("{id}/mark-read")]
 export async function markNotificationRead(id) {
   return await request(`/Notifications/MarkNotificationAsRead/${id}/mark-read`, {
     method: "PUT",

@@ -1,5 +1,8 @@
-using Scalar.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
+using System.Text;
 using System.Text.Json;
 
 namespace Service_Request_Management_System
@@ -10,7 +13,47 @@ namespace Service_Request_Management_System
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            // JWT signing key — reads SESSION_SECRET env var first, falls back to appsettings
+            var jwtKey = Environment.GetEnvironmentVariable("SESSION_SECRET")
+                         ?? builder.Configuration["Jwt:Key"]
+                         ?? throw new InvalidOperationException("JWT signing key is not configured.");
+
+            var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "SRMS";
+            var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "SRMS";
+
+            // JWT authentication
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = jwtIssuer,
+                        ValidAudience = jwtAudience,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                        ClockSkew = TimeSpan.Zero
+                    };
+
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnChallenge = context =>
+                        {
+                            context.HandleResponse();
+                            context.Response.StatusCode = 401;
+                            context.Response.ContentType = "application/json";
+                            return context.Response.WriteAsync(
+                                JsonSerializer.Serialize(new { message = "Unauthorized. Please sign in again." }));
+                        }
+                    };
+                });
+
+            builder.Services.AddAuthorization();
+
+            // JWT service
+            builder.Services.AddScoped<JwtService>();
 
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
@@ -23,19 +66,14 @@ namespace Service_Request_Management_System
                 options.UseSqlServer(
                     builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            // CORS — allows all origins (compatible with Replit dev proxy and any frontend host)
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowFrontend", policy =>
+                options.AddPolicy("AllowAll", policy =>
                 {
-                    policy
-                        .WithOrigins(
-                            "http://localhost:5173",
-                            "http://localhost:3000",
-                            "http://127.0.0.1:5173"
-                        )
-                        .AllowAnyMethod()
-                        .AllowAnyHeader()
-                        .AllowCredentials();
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
                 });
             });
 
@@ -56,7 +94,7 @@ namespace Service_Request_Management_System
                 });
             });
 
-            app.UseCors("AllowFrontend");
+            app.UseCors("AllowAll");
 
             if (app.Environment.IsDevelopment())
             {
@@ -64,7 +102,7 @@ namespace Service_Request_Management_System
                 app.MapScalarApiReference();
             }
 
-            app.UseHttpsRedirection();
+            app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
             app.Run();

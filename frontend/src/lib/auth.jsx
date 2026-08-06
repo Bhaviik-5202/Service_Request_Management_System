@@ -1,30 +1,30 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { loginUser, getUsers, createUser, updateUser, getRoles, getDepartments } from "@/services/api";
 
-const ALL = [
-  "dashboard.view",
-  "requests.view",
-  "requests.create",
-  "requests.edit",
-  "requests.delete",
-  "approvals.view",
-  "approvals.decide",
-  "assets.view",
-  "assets.manage",
-  "users.view",
-  "users.manage",
-  "reports.view",
-  "notifications.view",
-  "help.view",
-  "settings.view",
-];
-
 export const ROLE_PERMISSIONS = {
-  Admin: ALL,
+  Admin: [
+    "dashboard.view",
+    "requests.view",
+    "requests.create",
+    "requests.edit",
+    "requests.delete",
+    "approvals.view",
+    "approvals.decide",
+    "assets.view",
+    "assets.manage",
+    "users.view",
+    "users.manage",
+    "reports.view",
+    "notifications.view",
+    "help.view",
+    "settings.view",
+  ],
   HOD: [
     "dashboard.view",
     "requests.view",
     "requests.edit",
+    "approvals.view",
+    "approvals.decide",
     "reports.view",
     "notifications.view",
     "help.view",
@@ -53,7 +53,7 @@ export const ROLE_PERMISSIONS = {
 const AuthContext = createContext(null);
 const STORAGE_KEY = "servicedesk.auth";
 
-// Normalize user object format from API — never includes passwordHash
+// Normalize user object from API response — never includes passwordHash
 function normalizeUser(u, rolesList = [], deptsList = []) {
   if (!u) return null;
 
@@ -119,7 +119,6 @@ export function AuthProvider({ children }) {
           }
         }
       } catch {
-        // Corrupted storage — clear it
         localStorage.removeItem(STORAGE_KEY);
         sessionStorage.removeItem(STORAGE_KEY);
       } finally {
@@ -132,9 +131,11 @@ export function AuthProvider({ children }) {
 
   const signIn = useCallback(async (email, password, remember = true) => {
     try {
-      // Use server-side login validation
-      const userData = await loginUser(email, password);
-      if (!userData) return false;
+      const loginResponse = await loginUser(email, password);
+      if (!loginResponse) return false;
+
+      // Extract JWT token; remaining fields are the user object
+      const { token, ...userData } = loginResponse;
 
       const [apiRoles, apiDepts] = await Promise.all([
         getRoles().catch(() => []),
@@ -146,7 +147,14 @@ export function AuthProvider({ children }) {
       setRoleState(normalized.role);
       setSignedIn(true);
 
-      const sessionData = { userId: normalized.userId, role: normalized.role, signedIn: true, user: normalized };
+      const sessionData = {
+        userId: normalized.userId,
+        role: normalized.role,
+        signedIn: true,
+        user: normalized,
+        token: token || null,
+      };
+
       if (remember) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
         sessionStorage.removeItem(STORAGE_KEY);
@@ -202,7 +210,7 @@ export function AuthProvider({ children }) {
 
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ userId: normalized.userId, role: normalized.role, signedIn: true, user: normalized })
+        JSON.stringify({ userId: normalized.userId, role: normalized.role, signedIn: true, user: normalized, token: null })
       );
       sessionStorage.removeItem(STORAGE_KEY);
 
@@ -218,43 +226,6 @@ export function AuthProvider({ children }) {
     setSignedIn(false);
     localStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(STORAGE_KEY);
-  }, []);
-
-  // Switch the active role/user (admin dev utility)
-  const setRole = useCallback(async (r) => {
-    try {
-      const [apiUsers, apiRoles, apiDepts] = await Promise.all([
-        getUsers().catch(() => []),
-        getRoles().catch(() => []),
-        getDepartments().catch(() => []),
-      ]);
-
-      const defaultEmails = {
-        Admin: "admin@gmail.com",
-        HOD: "hod@gmail.com",
-        Technician: "tech@gmail.com",
-        Requestor: "requestor@gmail.com",
-      };
-      const email = defaultEmails[r];
-      const matchedUser = apiUsers.find(
-        (u) => u.email && u.email.toLowerCase() === email.toLowerCase()
-      );
-
-      if (matchedUser) {
-        const normalized = normalizeUser(matchedUser, apiRoles, apiDepts);
-        setUser(normalized);
-        setRoleState(r);
-
-        const sessionData = { userId: normalized.userId, role: r, signedIn: true, user: normalized };
-        if (sessionStorage.getItem(STORAGE_KEY)) {
-          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
-        } else {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
-        }
-      }
-    } catch {
-      // Silently fail — role switcher is not critical
-    }
   }, []);
 
   const can = useCallback((p) => (role ? ROLE_PERMISSIONS[role]?.includes(p) : false), [role]);
@@ -294,7 +265,16 @@ export function AuthProvider({ children }) {
 
       setUser(updatedUser);
 
-      const sessionData = { userId: updatedUser.userId, role: updatedUser.role, signedIn: true, user: updatedUser };
+      const raw = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
+      const existing = raw ? JSON.parse(raw) : {};
+      const sessionData = {
+        ...existing,
+        userId: updatedUser.userId,
+        role: updatedUser.role,
+        signedIn: true,
+        user: updatedUser,
+      };
+
       if (sessionStorage.getItem(STORAGE_KEY)) {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
       } else {
@@ -305,8 +285,8 @@ export function AuthProvider({ children }) {
   );
 
   const value = useMemo(
-    () => ({ user, role, signedIn, signIn, signUp, signOut, setRole, can, updateProfile }),
-    [user, role, signedIn, signIn, signUp, signOut, setRole, can, updateProfile]
+    () => ({ user, role, signedIn, signIn, signUp, signOut, can, updateProfile }),
+    [user, role, signedIn, signIn, signUp, signOut, can, updateProfile]
   );
 
   if (!hydrated) return null;

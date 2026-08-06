@@ -8,15 +8,6 @@ import {
   Settings,
   Sun,
   User,
-  Plus,
-  CheckSquare,
-  Boxes,
-  Cog,
-  ShieldCheck,
-  UserCog,
-  Wrench,
-  User as UserIcon,
-  Check,
 } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -34,30 +25,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTheme } from "@/lib/theme";
 import { getNotifications } from "@/services/api";
 import { useAuth } from "@/lib/auth";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-const roleIcon = {
-  Admin: ShieldCheck,
-  HOD: UserCog,
-  Technician: Wrench,
-  Requestor: UserIcon,
-};
-
-const typeIcon = {
-  request: Plus,
-  approval: CheckSquare,
-  asset: Boxes,
-  system: Cog,
-};
 
 export function TopBar() {
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
-  const { role, setRole, signOut, user } = useAuth();
+  const { role, signOut, user } = useAuth();
   const [panelOpen, setPanelOpen] = useState(false);
   const [notifList, setNotifList] = useState([]);
-  const activeRole = role ?? "Admin";
 
   useEffect(() => {
     async function loadTopBarNotifs() {
@@ -68,12 +43,15 @@ export function TopBar() {
             id: String(n.notificationId || n.id),
             title: n.title || "Notification",
             message: n.message || "",
-            read: n.isRead || n.read || false,
-            type: n.type || "request",
-            time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "Just now",
+            read: n.isRead || false,
+            type: n.notificationType || "request",
+            time: n.createdAt
+              ? new Date(n.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+              : "Just now",
           }))
         );
-      } catch (err) {
+      } catch {
+        // Silently fail — notifications are non-critical for TopBar
       }
     }
     loadTopBarNotifs();
@@ -92,12 +70,9 @@ export function TopBar() {
         .substring(0, 2)
         .toUpperCase(),
       department: user?.department || "",
-      role: user?.role || activeRole || "Requestor",
+      role: user?.role || role || "Requestor",
     };
-  }, [user, activeRole]);
-
-
-  const RoleIcon = roleIcon[activeRole] || UserIcon;
+  }, [user, role]);
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur-md sm:gap-3 sm:px-5">
@@ -141,34 +116,31 @@ export function TopBar() {
               {notifList.length === 0 && (
                 <p className="py-8 text-center text-xs text-muted-foreground">No notifications found.</p>
               )}
-              {notifList.map((n) => {
-                const Icon = typeIcon[n.type] || Bell;
-                return (
-                  <div
-                    key={n.id}
-                    className={cn(
-                      "flex gap-3 rounded-xl p-3 transition-colors hover:bg-accent",
-                      !n.read && "bg-primary/5",
-                    )}
-                  >
-                    <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                      <Icon className="size-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold leading-tight">
-                        {n.title}
-                        {!n.read && (
-                          <span className="ml-2 inline-block size-2 rounded-full bg-primary" />
-                        )}
-                      </p>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                        {n.message}
-                      </p>
-                      <p className="mt-1 text-[11px] text-muted-foreground/70">{n.time}</p>
-                    </div>
+              {notifList.map((n) => (
+                <div
+                  key={n.id}
+                  className={cn(
+                    "flex gap-3 rounded-xl p-3 transition-colors hover:bg-accent",
+                    !n.read && "bg-primary/5",
+                  )}
+                >
+                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <Bell className="size-4" />
                   </div>
-                );
-              })}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight">
+                      {n.title}
+                      {!n.read && (
+                        <span className="ml-2 inline-block size-2 rounded-full bg-primary" />
+                      )}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                      {n.message}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground/70">{n.time}</p>
+                  </div>
+                </div>
+              ))}
               <Button
                 variant="outline"
                 className="mt-2 w-full rounded-xl cursor-pointer"
@@ -199,37 +171,9 @@ export function TopBar() {
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-bold leading-none">{currentUser.name}</p>
                 <p className="text-xs leading-none text-muted-foreground">{currentUser.email}</p>
+                <p className="text-[11px] text-muted-foreground">{currentUser.role}</p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-
-            {/* Quick role switcher for testing */}
-            <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-              Switch Role (Dev Preview)
-            </DropdownMenuLabel>
-            {["Admin", "HOD", "Technician", "Requestor"].map((r) => {
-              const Icon = roleIcon[r];
-              const isSelected = activeRole === r;
-              return (
-                <DropdownMenuItem
-                  key={r}
-                  onClick={() => {
-                    setRole(r);
-                    toast.success(`Role switched to ${r}`);
-                  }}
-                  className={cn(
-                    "flex items-center justify-between cursor-pointer text-xs rounded-xl",
-                    isSelected && "font-bold text-primary bg-primary/10",
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <Icon className="size-3.5" /> {r}
-                  </span>
-                  {isSelected && <Check className="size-3.5 text-primary" />}
-                </DropdownMenuItem>
-              );
-            })}
-
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
               <Link to="/profile">

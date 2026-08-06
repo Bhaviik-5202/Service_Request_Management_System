@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
   Ticket,
@@ -12,30 +12,15 @@ import {
   BarChart3,
   ArrowRight,
   Clock,
-  Award,
-  Users,
-  Building,
-  Check,
-  X,
-  MessageSquare,
-  Play,
-  Wrench,
-  RefreshCcw,
-  FileText,
   Loader2,
 } from "lucide-react";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
   Cell,
   Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
@@ -49,35 +34,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   getServiceRequests,
   getApprovals,
   getUsers,
   getAuditLogs,
-  updateServiceRequest,
-  updateApproval,
-  createServiceRequestReply,
 } from "@/services/api";
 import { useAuth } from "@/lib/auth";
-import { toast } from "sonner";
 import { LandingPage } from "@/components/shared/LandingPage";
 
 export const Route = createFileRoute("/_shell/")({
@@ -104,7 +68,6 @@ const PIE_COLORS = [
 
 function Dashboard() {
   const { role, user } = useAuth();
-  const navigate = useNavigate();
 
   const [requestsList, setRequestsList] = useState([]);
   const [approvalsList, setApprovalsList] = useState([]);
@@ -121,7 +84,9 @@ function Dashboard() {
         role: user.role,
       };
     }
-    return role ? { name: user?.fullName || user?.name || "", email: user?.email || "", department: user?.department || "", role } : { name: "System User", email: "user@company.com", department: "IT", role: "Admin" };
+    return role
+      ? { name: "", email: "", department: "", role }
+      : { name: "System User", email: "user@company.com", department: "IT", role: "Admin" };
   }, [user, role]);
 
   const loadDashboardData = async () => {
@@ -179,7 +144,8 @@ function Dashboard() {
       setApprovalsList(mappedApps);
       setUsersList(apiUsers || []);
       setAuditLogsList(apiLogs || []);
-    } catch (err) {
+    } catch {
+      // Errors are gracefully handled — pages show empty states
     } finally {
       setLoading(false);
     }
@@ -203,7 +169,6 @@ function Dashboard() {
     return requestsList;
   }, [role, activeProfile, requestsList]);
 
-  // Compute stats dynamically
   const totalCount = userRequests.length;
   const pendingCount = userRequests.filter(
     (r) => r.status === "Pending" || r.status === "Assigned" || r.status === "In Progress",
@@ -250,7 +215,6 @@ function Dashboard() {
     },
   ];
 
-  // Dynamic status distribution pie chart data
   const dynamicStatusDistribution = useMemo(() => {
     const counts = {
       Pending: 0,
@@ -266,27 +230,22 @@ function Dashboard() {
       }
     });
     return Object.keys(counts)
-      .map((key) => ({
-        name: key,
-        value: counts[key],
-      }))
+      .map((key) => ({ name: key, value: counts[key] }))
       .filter((item) => item.value > 0);
   }, [userRequests]);
 
-  // Dynamic recent requests list
-  const recent = useMemo(() => {
-    return userRequests.slice(0, 5);
-  }, [userRequests]);
+  const recent = useMemo(() => userRequests.slice(0, 5), [userRequests]);
 
-  // Filter recent activities from audit logs
+  // Map audit log fields from API response
   const filteredActivity = useMemo(() => {
     return (auditLogsList || []).map((l) => ({
       id: String(l.auditLogId || l.id),
-      actor: l.user?.fullName || l.userName || "User",
+      actor: l.actorUser?.fullName || "System",
       action: l.action || "performed action",
-      target: l.entityName || "Record",
-      detail: l.details || "",
-      time: l.timestamp ? new Date(l.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "Recently",
+      target: l.targetDisplay || l.targetType || "Record",
+      time: l.createdAt
+        ? new Date(l.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+        : "Recently",
     })).slice(0, 5);
   }, [auditLogsList]);
 
@@ -342,119 +301,6 @@ function Dashboard() {
     return "Good Evening";
   }, [hour]);
 
-  const stats = useMemo(() => {
-    const total = requestsList.length;
-    const pending = requestsList.filter((r) => r.status === "Pending").length;
-    const assigned = requestsList.filter((r) => r.status === "Assigned").length;
-    const inProgress = requestsList.filter((r) => r.status === "In Progress").length;
-    const completed = requestsList.filter((r) => r.status === "Completed").length;
-    const closed = requestsList.filter((r) => r.status === "Closed").length;
-    const activeUsersCount = usersList.filter((u) => u.status === "Active" || !u.isDeleted).length;
-
-    return {
-      total,
-      pending: pending + assigned,
-      inProgress,
-      completed,
-      closed,
-      activeUsersCount,
-    };
-  }, [requestsList, usersList]);
-
-  const [remarks, setRemarks] = useState("");
-  const [hodApprovalDialog, setHodApprovalDialog] = useState(null);
-
-  const deptApprovals = useMemo(() => {
-    return approvalsList.filter(
-      (a) => a.status === "Pending" && a.department === activeProfile.department,
-    );
-  }, [approvalsList, activeProfile]);
-
-  const handleHodDecide = async (action) => {
-    if (!hodApprovalDialog) return;
-    try {
-      await updateApproval(hodApprovalDialog.approval.approvalId, {
-        approvalId: Number(hodApprovalDialog.approval.approvalId),
-        requestId: Number(hodApprovalDialog.approval.requestId),
-        status: action,
-        decidedByUserId: user?.userId || 1,
-        decidedAt: new Date().toISOString(),
-        remarks: remarks || "",
-      });
-      toast.success(`Request ${hodApprovalDialog.approval.requestNo} ${action.toLowerCase()}`);
-      await loadDashboardData();
-    } catch (err) {
-      toast.error(err.message || "Approval decision failed.");
-    } finally {
-      setHodApprovalDialog(null);
-      setRemarks("");
-    }
-  };
-
-  const handleClaim = async (req) => {
-    try {
-      await updateServiceRequest(req.id, {
-        ...req.raw,
-        assigneeUserId: user?.userId || 1,
-        statusId: 2, // Assigned
-        updatedByUserId: user?.userId || 1,
-      });
-
-      await createServiceRequestReply({
-        requestId: Number(req.id),
-        authorUserId: user?.userId || 1,
-        message: `Technician ${activeProfile.name} claimed this request.`,
-      }).catch(() => null);
-
-      toast.success(`Claimed ticket ${req.no}!`);
-      await loadDashboardData();
-    } catch (err) {
-      toast.error(err.message || "Failed to claim request.");
-    }
-  };
-
-  const handleTechStartWork = async (req) => {
-    try {
-      await updateServiceRequest(req.id, {
-        ...req.raw,
-        statusId: 3, // In Progress
-        updatedByUserId: user?.userId || 1,
-      });
-
-      await createServiceRequestReply({
-        requestId: Number(req.id),
-        authorUserId: user?.userId || 1,
-        message: "Started working on this request.",
-      }).catch(() => null);
-
-      toast.success(`Started work on ${req.no}`);
-      await loadDashboardData();
-    } catch (err) {
-      toast.error(err.message || "Failed to start work.");
-    }
-  };
-
-  const handleTechComplete = async (req) => {
-    try {
-      await updateServiceRequest(req.id, {
-        ...req.raw,
-        statusId: 4, // Completed
-        updatedByUserId: user?.userId || 1,
-      });
-
-      await createServiceRequestReply({
-        requestId: Number(req.id),
-        authorUserId: user?.userId || 1,
-        message: "Marked this request as Completed.",
-      }).catch(() => null);
-
-      toast.success(`Marked ${req.no} as Completed!`);
-      await loadDashboardData();
-    } catch (err) {
-      toast.error(err.message || "Failed to complete request.");
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -493,7 +339,7 @@ function Dashboard() {
 
       {!loading && (
         <>
-          {/* Dynamic KPI Cards */}
+          {/* KPI Cards */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {dynamicKpis.map((kpi, i) => (
               <StatCard key={kpi.title} index={i} {...kpi} />
@@ -689,35 +535,6 @@ function Dashboard() {
           </motion.div>
         </>
       )}
-
-      {/* Decision Dialog */}
-      <Dialog open={!!hodApprovalDialog} onOpenChange={(o) => !o && setHodApprovalDialog(null)}>
-        <DialogContent className="rounded-2xl max-w-md">
-          <DialogHeader>
-            <DialogTitle>Decide Approval Request</DialogTitle>
-            <DialogDescription>
-              {hodApprovalDialog?.approval.requestNo} — {hodApprovalDialog?.approval.title}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2.5 space-y-3">
-            <div className="space-y-1.5">
-              <Label>Remarks</Label>
-              <Textarea
-                placeholder="Decision comments..."
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                rows={3}
-                className="rounded-xl"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setHodApprovalDialog(null)} className="rounded-xl">Cancel</Button>
-            <Button onClick={() => handleHodDecide("Rejected")} variant="destructive" className="rounded-xl">Reject</Button>
-            <Button onClick={() => handleHodDecide("Approved")} className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-500">Approve</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

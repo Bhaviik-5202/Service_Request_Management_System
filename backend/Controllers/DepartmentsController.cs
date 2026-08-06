@@ -7,6 +7,7 @@ namespace Service_Request_Management_System.Controllers
 {
     [Route("api/[controller]/[Action]")]
     [ApiController]
+    [Authorize]
     public class DepartmentsController : ControllerBase
     {
         private readonly AppDbContext _context;

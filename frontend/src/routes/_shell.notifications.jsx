@@ -34,23 +34,27 @@ function NotificationsPage() {
         notificationId: n.notificationId,
         title: n.title || "Notification",
         message: n.message || "",
-        read: n.isRead || n.read || false,
-        type: n.type || "request",
-        time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "Just now",
+        read: n.isRead || false,
+        type: n.notificationType || "request",
+        time: n.createdAt
+          ? new Date(n.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+          : "Just now",
       }));
 
       const mappedLogs = (apiLogs || []).map((l) => ({
         id: String(l.auditLogId || l.id),
-        actor: l.user?.fullName || l.userName || "System User",
+        actor: l.actorUser?.fullName || "System",
         action: l.action || "performed operation",
-        target: l.entityName || "Record",
-        detail: l.details || "",
-        time: l.timestamp ? new Date(l.timestamp).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Recently",
+        target: l.targetDisplay || l.targetType || "Record",
+        time: l.createdAt
+          ? new Date(l.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+          : "Recently",
       }));
 
       setItems(mappedNotifs);
       setActivityList(mappedLogs);
-    } catch (err) {
+    } catch {
+      // Gracefully show empty state
     } finally {
       setLoading(false);
     }
@@ -68,7 +72,7 @@ function NotificationsPage() {
       await Promise.all(unreadItems.map((n) => markNotificationRead(n.notificationId || n.id).catch(() => null)));
       setItems((prev) => prev.map((n) => ({ ...n, read: true })));
       toast.success("All notifications marked as read");
-    } catch (err) {
+    } catch {
       toast.error("Failed to mark notifications read.");
     }
   };
@@ -78,7 +82,8 @@ function NotificationsPage() {
       try {
         await markNotificationRead(n.notificationId || n.id).catch(() => null);
         setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-      } catch (err) {
+      } catch {
+        // Silently ignore single-read failures
       }
     }
   };
@@ -121,6 +126,13 @@ function NotificationsPage() {
             <div className="py-12 text-center text-sm text-muted-foreground">
               <Loader2 className="size-6 animate-spin mx-auto mb-2 text-primary" />
               Loading notifications…
+            </div>
+          )}
+
+          {!loading && items.length === 0 && (
+            <div className="rounded-2xl border bg-card/40 backdrop-blur-md p-12 text-center shadow-card">
+              <Bell className="mx-auto size-8 text-muted-foreground" />
+              <p className="mt-3 text-sm text-muted-foreground">No notifications yet.</p>
             </div>
           )}
 
@@ -194,9 +206,7 @@ function NotificationsPage() {
                       <span className="text-muted-foreground">{a.action}</span>{" "}
                       <span className="font-medium text-primary">{a.target}</span>
                     </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {a.detail} {a.detail && "·"} {a.time}
-                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{a.time}</p>
                   </div>
                 </motion.div>
               ))}
@@ -204,13 +214,6 @@ function NotificationsPage() {
           </div>
         </TabsContent>
       </Tabs>
-
-      {!loading && items.length === 0 && (
-        <div className="rounded-2xl border bg-card/40 backdrop-blur-md p-12 text-center shadow-card">
-          <Bell className="mx-auto size-8 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">No notifications yet.</p>
-        </div>
-      )}
     </div>
   );
 }

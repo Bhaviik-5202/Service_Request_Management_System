@@ -1,0 +1,5 @@
+- [Project architecture](project-arch.md) — full-stack SRMS: React 19/Vite frontend (port 5000), ASP.NET Core 9 backend (port 5083), SQL Server
+- [JWT auth implementation](jwt-auth.md) — SESSION_SECRET env var is the JWT signing key; login returns token field; legacy plain-text passwords auto-rehash on first login
+- [Backend target framework](backend-dotnet.md) — backend targets net9.0 (was net10.0); use dotnet-9.0 module; all EF Core/OpenApi packages pinned to 9.0.7
+- [Approval endpoint](approval-endpoint.md) — correct endpoint is PUT /api/Approvals/DecideApproval/{id}/decide; no PutApproval exists; updateApproval removed from api.js
+- [Auth storage key](auth-storage.md) — session stored under key "servicedesk.auth" in localStorage/sessionStorage; token field included alongside user object

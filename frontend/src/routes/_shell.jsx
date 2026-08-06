@@ -4,7 +4,6 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { useAuth } from "@/lib/auth";
-import { ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/_shell")({
   component: ShellLayout,
@@ -74,19 +73,3 @@ function ShellLayout() {
   );
 }
 
-function Forbidden() {
-  return (
-    <div className="grid place-items-center py-20 text-center">
-      <div className="max-w-md">
-        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
-          <ShieldAlert className="size-7" />
-        </div>
-        <h1 className="mt-4 font-display text-2xl font-bold">Access restricted</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your role does not have permission to view this page. Contact your administrator or switch
-          roles from the top bar.
-        </p>
-      </div>
-    </div>
-  );
-}

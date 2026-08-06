@@ -174,9 +174,7 @@ export function RequestForm({ existing }) {
         if (isApprovalNeeded) {
           await createApproval({
             requestId: created.requestId,
-            approverUserId: currentUserId,
             status: "Pending",
-            comments: "Awaiting approval",
           }).catch(() => null);
         }
 
@@ -216,7 +214,7 @@ export function RequestForm({ existing }) {
               <SelectValue placeholder="Select service type" />
             </SelectTrigger>
             <SelectContent>
-              {(serviceTypeList.length > 0 ? serviceTypeList.map((t) => t.serviceTypeName) : ["Technical", "Facility", "Administrative"]).map((t) => (
+              {serviceTypeList.map((t) => t.serviceTypeName).map((t) => (
                 <SelectItem key={t} value={t}>
                   {t}
                 </SelectItem>
@@ -232,7 +230,7 @@ export function RequestForm({ existing }) {
               <SelectValue placeholder="Select request type" />
             </SelectTrigger>
             <SelectContent>
-              {(requestTypeList.length > 0 ? requestTypeList.map((t) => t.requestTypeName) : ["Computer Issue", "AC Repair", "Network Access"]).map((t) => (
+              {requestTypeList.map((t) => t.requestTypeName).map((t) => (
                 <SelectItem key={t} value={t}>
                   {t}
                 </SelectItem>
@@ -248,7 +246,7 @@ export function RequestForm({ existing }) {
               <SelectValue placeholder="Select department" />
             </SelectTrigger>
             <SelectContent>
-              {(departmentList.length > 0 ? departmentList.map((d) => d.departmentName) : ["IT", "Operations", "Sales", "Maintenance"]).map((d) => (
+              {departmentList.map((d) => d.departmentName).map((d) => (
                 <SelectItem key={d} value={d}>
                   {d}
                 </SelectItem>

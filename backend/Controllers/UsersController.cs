@@ -1,19 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Service_Request_Management_System.Data;
-using Service_Request_Management_System.Models;
 
 namespace Service_Request_Management_System.Controllers
 {
     [Route("api/[controller]/[Action]")]
     [ApiController]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly JwtService _jwtService;
 
-        public UsersController(AppDbContext context)
+        public UsersController(AppDbContext context, JwtService jwtService)
         {
             _context = context;
+            _jwtService = jwtService;
         }
 
         // GET: api/Users/GetUsers
@@ -91,6 +92,7 @@ namespace Service_Request_Management_System.Controllers
 
         // POST: api/Users/PostUser
         [HttpPost]
+        [AllowAnonymous]
         public async Task<ActionResult<User>> PostUser(User user)
         {
             if (await _context.Users.AnyAsync(u => u.Email == user.Email && !u.IsDeleted))
@@ -112,6 +114,9 @@ namespace Service_Request_Management_System.Controllers
             {
                 return BadRequest($"Department with ID {user.DepartmentId} does not exist.");
             }
+
+            // Hash the password before storing
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
 
             user.JoinedDate = DateTime.UtcNow.Date;
             user.CreatedAt = DateTime.UtcNow;
@@ -189,9 +194,13 @@ namespace Service_Request_Management_System.Controllers
             existingUser.Status = user.Status;
             existingUser.UpdatedAt = DateTime.UtcNow;
 
+            // Only rehash if a new password is provided and it differs from the stored hash
             if (!string.IsNullOrEmpty(user.PasswordHash) && user.PasswordHash != existingUser.PasswordHash)
             {
-                existingUser.PasswordHash = user.PasswordHash;
+                // If the incoming value is already a BCrypt hash, keep it; otherwise hash it
+                existingUser.PasswordHash = user.PasswordHash.StartsWith("$2")
+                    ? user.PasswordHash
+                    : BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
             }
 
             _context.Entry(existingUser).State = EntityState.Modified;
@@ -263,6 +272,7 @@ namespace Service_Request_Management_System.Controllers
 
         // POST: api/Users/Login
         [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
         {
             if (string.IsNullOrWhiteSpace(loginRequest.Email) || string.IsNullOrWhiteSpace(loginRequest.Password))
@@ -277,7 +287,28 @@ namespace Service_Request_Management_System.Controllers
                 .Include(u => u.UserSetting)
                 .FirstOrDefaultAsync();
 
-            if (user == null || user.PasswordHash != loginRequest.Password)
+            if (user == null)
+            {
+                return Unauthorized(new { message = "Invalid email or password." });
+            }
+
+            // Verify password — supports both BCrypt hashes and legacy plain-text (rehashes on match)
+            bool passwordValid;
+            if (user.PasswordHash.StartsWith("$2"))
+            {
+                passwordValid = BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.PasswordHash);
+            }
+            else
+            {
+                passwordValid = user.PasswordHash == loginRequest.Password;
+                if (passwordValid)
+                {
+                    // Migrate plain-text password to BCrypt hash
+                    user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(loginRequest.Password);
+                }
+            }
+
+            if (!passwordValid)
             {
                 return Unauthorized(new { message = "Invalid email or password." });
             }
@@ -286,14 +317,18 @@ namespace Service_Request_Management_System.Controllers
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            var result = new
+            var roleName = user.Role?.RoleName ?? "Requestor";
+            var token = _jwtService.GenerateToken(user.UserId, user.Email, roleName);
+
+            return Ok(new
             {
+                token,
                 user.UserId,
                 user.EmployeeId,
                 user.FullName,
                 user.Email,
                 user.RoleId,
-                RoleName = user.Role?.RoleName,
+                RoleName = roleName,
                 user.DepartmentId,
                 DepartmentName = user.Department?.DepartmentName,
                 user.Phone,
@@ -301,9 +336,7 @@ namespace Service_Request_Management_System.Controllers
                 user.JoinedDate,
                 user.LastLoginAt,
                 user.CreatedAt
-            };
-
-            return Ok(result);
+            });
         }
     }
 
