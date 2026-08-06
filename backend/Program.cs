@@ -62,9 +62,15 @@ namespace Service_Request_Management_System
                     options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
                 });
 
+            // Connection string: DB_CONNECTION_STRING env var takes precedence over appsettings.json
+            var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING")
+                ?? builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException(
+                    "Database connection string is not configured. " +
+                    "Set the DB_CONNECTION_STRING environment variable or add DefaultConnection to appsettings.json.");
+
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(
-                    builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseSqlServer(connectionString));
 
             // CORS — allows all origins (compatible with Replit dev proxy and any frontend host)
             builder.Services.AddCors(options =>

@@ -1,0 +1,55 @@
+The backend implementation is already complete.
+
+The only blocker preventing full end-to-end functionality is the database connection.
+
+Your task is ONLY to complete the database integration.
+
+Requirements:
+
+1. Connect the ASP.NET Core backend to the real Microsoft SQL Server database running on my local Windows machine.
+
+2. Review and verify:
+   - appsettings.json
+   - appsettings.Development.json
+   - ConnectionStrings
+   - Program.cs
+   - Entity Framework Core configuration
+   - DbContext registration
+   - Dependency Injection
+   - SQL Server provider configuration
+
+3. Ensure Entity Framework Core is configured correctly.
+
+4. Verify all migrations.
+   - If migrations are missing, create them.
+   - If the database is behind, update it.
+   - Ensure the schema matches the entity models.
+
+5. Verify:
+   - Tables
+   - Relationships
+   - Foreign Keys
+   - Primary Keys
+   - Constraints
+   - Seed data (if required)
+
+6. Test database connectivity.
+
+7. Verify every repository and service can successfully read and write data.
+
+8. Test every CRUD API against the real SQL Server database.
+
+9. Remove any temporary, mock, in-memory, or fake database implementations.
+
+10. If the backend is running inside Replit or another cloud environment, explain clearly why it cannot directly connect to a SQL Server running on my local Windows PC, and provide the correct solution.
+
+If direct connection is not possible, recommend the best production-ready alternative, such as:
+- Hosting SQL Server in the cloud (Azure SQL Database, SQL Server on Azure VM, etc.)
+- Exposing the local SQL Server securely through a VPN or tunnel (only if appropriate)
+- Running the backend locally against the local SQL Server
+- Exporting/importing the database to an accessible environment
+
+Do NOT modify business logic.
+Do NOT redesign the project.
+Do NOT change API contracts.
+Only resolve the database connectivity issue and verify that the application can perform full CRUD operations using the real database.
