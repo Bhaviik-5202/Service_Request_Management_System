@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using ServiceRequestManagementSystem.API.Data;
 

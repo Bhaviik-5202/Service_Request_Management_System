@@ -1,0 +1,351 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using ServiceRequestManagementSystem.API.Data;
+using ServiceRequestManagementSystem.API.DTOs.Common;
+using ServiceRequestManagementSystem.API.DTOs.Masters;
+using ServiceRequestManagementSystem.API.Models;
+
+namespace ServiceRequestManagementSystem.API.Controllers
+{
+    [ApiController]
+    [Route("api/v1/masters")]
+    public class MastersController : ControllerBase
+    {
+        private readonly AppDbContext _context;
+
+        public MastersController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        // ================= STATUSES MASTER =================
+
+        [HttpGet("statuses")]
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<StatusDto>>>> GetStatuses()
+        {
+            var statuses = await _context.ServiceRequestStatuses
+                .OrderBy(s => s.StatusId)
+                .Select(s => new StatusDto
+                {
+                    StatusId = s.StatusId,
+                    StatusName = s.StatusName,
+                    ColorCode = s.ColorCode,
+                    Description = s.Description,
+                    IsActive = s.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponseDto<IEnumerable<StatusDto>> { Success = true, Data = statuses });
+        }
+
+        [HttpPost("statuses")]
+        public async Task<ActionResult<ApiResponseDto<StatusDto>>> CreateStatus([FromBody] StatusDto dto)
+        {
+            var status = new ServiceRequestStatus
+            {
+                StatusName = dto.StatusName,
+                ColorCode = dto.ColorCode,
+                Description = dto.Description,
+                IsActive = dto.IsActive,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.ServiceRequestStatuses.Add(status);
+            await _context.SaveChangesAsync();
+
+            dto.StatusId = status.StatusId;
+            return Ok(new ApiResponseDto<StatusDto> { Success = true, Message = "Status created successfully.", Data = dto });
+        }
+
+        [HttpPut("statuses/{id}")]
+        public async Task<ActionResult<ApiResponseDto<StatusDto>>> UpdateStatus(int id, [FromBody] StatusDto dto)
+        {
+            var status = await _context.ServiceRequestStatuses.FindAsync(id);
+            if (status == null)
+                return NotFound(new ApiResponseDto<StatusDto> { Success = false, Message = "Status not found." });
+
+            status.StatusName = dto.StatusName;
+            status.ColorCode = dto.ColorCode;
+            status.Description = dto.Description;
+            status.IsActive = dto.IsActive;
+
+            await _context.SaveChangesAsync();
+            return Ok(new ApiResponseDto<StatusDto> { Success = true, Message = "Status updated successfully.", Data = dto });
+        }
+
+        [HttpDelete("statuses/{id}")]
+        public async Task<ActionResult<ApiResponseDto<bool>>> DeleteStatus(int id)
+        {
+            var status = await _context.ServiceRequestStatuses.FindAsync(id);
+            if (status == null)
+                return NotFound(new ApiResponseDto<bool> { Success = false, Message = "Status not found." });
+
+            status.IsActive = false;
+            await _context.SaveChangesAsync();
+            return Ok(new ApiResponseDto<bool> { Success = true, Message = "Status deactivated.", Data = true });
+        }
+
+        // ================= DEPARTMENTS MASTER =================
+
+        [HttpGet("departments")]
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<DepartmentDto>>>> GetDepartments()
+        {
+            var depts = await _context.Departments
+                .Select(d => new DepartmentDto
+                {
+                    DepartmentId = d.DepartmentId,
+                    DepartmentName = d.DepartmentName,
+                    DepartmentCode = d.DepartmentCode,
+                    Description = d.Description,
+                    IsActive = d.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponseDto<IEnumerable<DepartmentDto>> { Success = true, Data = depts });
+        }
+
+        [HttpPost("departments")]
+        public async Task<ActionResult<ApiResponseDto<DepartmentDto>>> CreateDepartment([FromBody] DepartmentDto dto)
+        {
+            var dept = new Department
+            {
+                DepartmentName = dto.DepartmentName,
+                DepartmentCode = dto.DepartmentCode,
+                Description = dto.Description,
+                IsActive = dto.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.Departments.Add(dept);
+            await _context.SaveChangesAsync();
+
+            dto.DepartmentId = dept.DepartmentId;
+            return Ok(new ApiResponseDto<DepartmentDto> { Success = true, Message = "Department created successfully.", Data = dto });
+        }
+
+        [HttpPut("departments/{id}")]
+        public async Task<ActionResult<ApiResponseDto<DepartmentDto>>> UpdateDepartment(int id, [FromBody] DepartmentDto dto)
+        {
+            var dept = await _context.Departments.FindAsync(id);
+            if (dept == null)
+                return NotFound(new ApiResponseDto<DepartmentDto> { Success = false, Message = "Department not found." });
+
+            dept.DepartmentName = dto.DepartmentName;
+            dept.DepartmentCode = dto.DepartmentCode;
+            dept.Description = dto.Description;
+            dept.IsActive = dto.IsActive;
+            dept.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return Ok(new ApiResponseDto<DepartmentDto> { Success = true, Message = "Department updated successfully.", Data = dto });
+        }
+
+        [HttpDelete("departments/{id}")]
+        public async Task<ActionResult<ApiResponseDto<bool>>> DeleteDepartment(int id)
+        {
+            var dept = await _context.Departments.FindAsync(id);
+            if (dept == null)
+                return NotFound(new ApiResponseDto<bool> { Success = false, Message = "Department not found." });
+
+            dept.IsDeleted = true;
+            dept.DeletedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new ApiResponseDto<bool> { Success = true, Message = "Department soft deleted.", Data = true });
+        }
+
+        // ================= DEPARTMENT PERSONNEL MASTER =================
+
+        [HttpGet("personnel")]
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<DepartmentPersonnelDto>>>> GetPersonnel()
+        {
+            var personnel = await _context.DepartmentPersonnel
+                .Include(p => p.User)
+                .Include(p => p.Department)
+                .Select(p => new DepartmentPersonnelDto
+                {
+                    DepartmentPersonnelId = p.DepartmentPersonnelId,
+                    UserId = p.UserId,
+                    UserName = p.User!.FullName,
+                    DepartmentId = p.DepartmentId,
+                    DepartmentName = p.Department!.DepartmentName,
+                    IsHOD = p.IsHOD,
+                    IsActive = p.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponseDto<IEnumerable<DepartmentPersonnelDto>> { Success = true, Data = personnel });
+        }
+
+        [HttpPost("personnel")]
+        public async Task<ActionResult<ApiResponseDto<DepartmentPersonnelDto>>> MapPersonnel([FromBody] DepartmentPersonnelDto dto)
+        {
+            var dp = new DepartmentPersonnel
+            {
+                UserId = dto.UserId,
+                DepartmentId = dto.DepartmentId,
+                IsHOD = dto.IsHOD,
+                IsActive = dto.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.DepartmentPersonnel.Add(dp);
+            await _context.SaveChangesAsync();
+
+            dto.DepartmentPersonnelId = dp.DepartmentPersonnelId;
+            return Ok(new ApiResponseDto<DepartmentPersonnelDto> { Success = true, Message = "Personnel mapped successfully.", Data = dto });
+        }
+
+        [HttpPut("personnel/{id}")]
+        public async Task<ActionResult<ApiResponseDto<DepartmentPersonnelDto>>> UpdatePersonnel(int id, [FromBody] DepartmentPersonnelDto dto)
+        {
+            var dp = await _context.DepartmentPersonnel.FindAsync(id);
+            if (dp == null)
+                return NotFound(new ApiResponseDto<DepartmentPersonnelDto> { Success = false, Message = "Personnel mapping not found." });
+
+            dp.IsHOD = dto.IsHOD;
+            dp.IsActive = dto.IsActive;
+            dp.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return Ok(new ApiResponseDto<DepartmentPersonnelDto> { Success = true, Message = "Personnel mapping updated.", Data = dto });
+        }
+
+        [HttpDelete("personnel/{id}")]
+        public async Task<ActionResult<ApiResponseDto<bool>>> DeletePersonnel(int id)
+        {
+            var dp = await _context.DepartmentPersonnel.FindAsync(id);
+            if (dp == null)
+                return NotFound(new ApiResponseDto<bool> { Success = false, Message = "Personnel mapping not found." });
+
+            dp.IsDeleted = true;
+            dp.DeletedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new ApiResponseDto<bool> { Success = true, Message = "Personnel mapping soft deleted.", Data = true });
+        }
+
+        // ================= SERVICE TYPES MASTER =================
+
+        [HttpGet("service-types")]
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceTypeDto>>>> GetServiceTypes()
+        {
+            var types = await _context.ServiceTypes
+                .Select(s => new ServiceTypeDto
+                {
+                    ServiceTypeId = s.ServiceTypeId,
+                    ServiceTypeName = s.ServiceTypeName,
+                    ServiceTypeCode = s.ServiceTypeCode,
+                    Description = s.Description,
+                    IsActive = s.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponseDto<IEnumerable<ServiceTypeDto>> { Success = true, Data = types });
+        }
+
+        [HttpPost("service-types")]
+        public async Task<ActionResult<ApiResponseDto<ServiceTypeDto>>> CreateServiceType([FromBody] ServiceTypeDto dto)
+        {
+            var st = new ServiceType
+            {
+                ServiceTypeName = dto.ServiceTypeName,
+                ServiceTypeCode = dto.ServiceTypeCode,
+                Description = dto.Description,
+                IsActive = dto.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.ServiceTypes.Add(st);
+            await _context.SaveChangesAsync();
+
+            dto.ServiceTypeId = st.ServiceTypeId;
+            return Ok(new ApiResponseDto<ServiceTypeDto> { Success = true, Message = "Service type created successfully.", Data = dto });
+        }
+
+        // ================= REQUEST TYPES MASTER =================
+
+        [HttpGet("request-types")]
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<RequestTypeDto>>>> GetRequestTypes()
+        {
+            var types = await _context.RequestTypes
+                .Include(r => r.ServiceType)
+                .Select(r => new RequestTypeDto
+                {
+                    RequestTypeId = r.RequestTypeId,
+                    ServiceTypeId = r.ServiceTypeId,
+                    ServiceTypeName = r.ServiceType != null ? r.ServiceType.ServiceTypeName : null,
+                    RequestTypeName = r.RequestTypeName,
+                    Description = r.Description,
+                    RequiresApproval = r.RequiresApproval,
+                    IsActive = r.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponseDto<IEnumerable<RequestTypeDto>> { Success = true, Data = types });
+        }
+
+        [HttpPost("request-types")]
+        public async Task<ActionResult<ApiResponseDto<RequestTypeDto>>> CreateRequestType([FromBody] RequestTypeDto dto)
+        {
+            var rt = new RequestType
+            {
+                ServiceTypeId = dto.ServiceTypeId,
+                RequestTypeName = dto.RequestTypeName,
+                Description = dto.Description,
+                RequiresApproval = dto.RequiresApproval,
+                IsActive = dto.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.RequestTypes.Add(rt);
+            await _context.SaveChangesAsync();
+
+            dto.RequestTypeId = rt.RequestTypeId;
+            return Ok(new ApiResponseDto<RequestTypeDto> { Success = true, Message = "Request type created successfully.", Data = dto });
+        }
+
+        // ================= REQUEST TYPE MAPPINGS MASTER =================
+
+        [HttpGet("mappings")]
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<RequestTypeTechnicianMappingDto>>>> GetMappings()
+        {
+            var mappings = await _context.RequestTypeTechnicianMappings
+                .Include(m => m.RequestType)
+                .Include(m => m.DepartmentPersonnel).ThenInclude(dp => dp!.User)
+                .Select(m => new RequestTypeTechnicianMappingDto
+                {
+                    MappingId = m.MappingId,
+                    RequestTypeId = m.RequestTypeId,
+                    RequestTypeName = m.RequestType!.RequestTypeName,
+                    DepartmentPersonnelId = m.DepartmentPersonnelId,
+                    TechnicianName = m.DepartmentPersonnel!.User!.FullName,
+                    IsActive = m.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponseDto<IEnumerable<RequestTypeTechnicianMappingDto>> { Success = true, Data = mappings });
+        }
+
+        [HttpPost("mappings")]
+        public async Task<ActionResult<ApiResponseDto<RequestTypeTechnicianMappingDto>>> CreateMapping([FromBody] RequestTypeTechnicianMappingDto dto)
+        {
+            var mapping = new RequestTypeTechnicianMapping
+            {
+                RequestTypeId = dto.RequestTypeId,
+                DepartmentPersonnelId = dto.DepartmentPersonnelId,
+                IsActive = dto.IsActive,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.RequestTypeTechnicianMappings.Add(mapping);
+            await _context.SaveChangesAsync();
+
+            dto.MappingId = mapping.MappingId;
+            return Ok(new ApiResponseDto<RequestTypeTechnicianMappingDto> { Success = true, Message = "Auto-assignment mapping created.", Data = dto });
+        }
+    }
+}
