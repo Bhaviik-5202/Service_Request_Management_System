@@ -1,0 +1,44 @@
+# IDEs and editors
+**/.vs/
+**/.idea/
+**/.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.mono
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Backup and temporary files
+*.tmp
+*.Backup.tmp
+*.bak
+*.swp
+*~
+*.log
+
+# Frontend/Node.js dependencies and builds
+**/node_modules/
+**/dist/
+**/build/
+**/.output/
+**/.tanstack/
+**/.wrangler/
+**/bun.lockb
+.env
+.env*.local
+.eslintcache
+
+# Backend/.NET Core dependencies and builds
+**/bin/
+**/obj/
+**/appsettings.Development.json
+**/appsettings.Local.json
+[Oo]ut/
+[Pp]ublish/
