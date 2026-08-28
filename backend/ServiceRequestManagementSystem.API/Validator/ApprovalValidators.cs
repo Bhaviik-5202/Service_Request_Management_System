@@ -8,10 +8,12 @@ namespace ServiceRequestManagementSystem.API.Validator
         public ApprovalDecisionDtoValidator()
         {
             RuleFor(x => x.Decision)
-                .IsInEnum().WithMessage("Valid approval decision (Approved or Rejected) is required.");
+                .IsInEnum()
+                .WithMessage("Valid approval decision (Approved or Rejected) is required.");
 
             RuleFor(x => x.Remarks)
-                .MaximumLength(1000).WithMessage("Remarks cannot exceed 1000 characters.");
+                .MaximumLength(1000)
+                .WithMessage("Remarks cannot exceed 1000 characters.");
         }
     }
 }
