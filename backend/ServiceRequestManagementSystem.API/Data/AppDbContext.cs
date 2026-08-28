@@ -6,358 +6,673 @@ namespace ServiceRequestManagementSystem.API.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options)
         {
         }
 
         public DbSet<User> Users { get; set; } = null!;
+
         public DbSet<UserSettings> UserSettings { get; set; } = null!;
+
         public DbSet<Department> Departments { get; set; } = null!;
+
         public DbSet<DepartmentPersonnel> DepartmentPersonnel { get; set; } = null!;
+
         public DbSet<ServiceType> ServiceTypes { get; set; } = null!;
+
         public DbSet<RequestType> RequestTypes { get; set; } = null!;
+
         public DbSet<RequestTypeTechnicianMapping> RequestTypeTechnicianMappings { get; set; } = null!;
+
         public DbSet<ServiceRequestStatus> ServiceRequestStatuses { get; set; } = null!;
+
         public DbSet<ServiceRequest> ServiceRequests { get; set; } = null!;
+
         public DbSet<ServiceRequestReply> ServiceRequestReplies { get; set; } = null!;
+
         public DbSet<ServiceRequestTimeline> ServiceRequestTimeline { get; set; } = null!;
+
         public DbSet<ServiceRequestAttachment> ServiceRequestAttachments { get; set; } = null!;
+
         public DbSet<Approval> Approvals { get; set; } = null!;
+
         public DbSet<Asset> Assets { get; set; } = null!;
+
         public DbSet<Notification> Notifications { get; set; } = null!;
+
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Enum -> String Conversion
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.HasKey(u => u.UserId);
 
-            modelBuilder.Entity<User>()
-                .Property(u => u.Role)
-                .HasConversion<string>();
+                entity.Property(u => u.EmployeeId)
+                    .IsRequired()
+                    .HasMaxLength(10);
 
-            modelBuilder.Entity<User>()
-                .Property(u => u.Status)
-                .HasConversion<string>();
+                entity.Property(u => u.FullName)
+                    .IsRequired()
+                    .HasMaxLength(50);
 
-            modelBuilder.Entity<ServiceRequest>()
-                .Property(sr => sr.Priority)
-                .HasConversion<string>();
+                entity.Property(u => u.Email)
+                    .IsRequired()
+                    .HasMaxLength(50);
 
-            modelBuilder.Entity<Asset>()
-                .Property(a => a.Status)
-                .HasConversion<string>();
+                entity.Property(u => u.Role)
+                    .HasConversion<string>()
+                    .IsRequired();
 
-            modelBuilder.Entity<Approval>()
-                .Property(a => a.Status)
-                .HasConversion<string>();
+                entity.Property(u => u.Phone)
+                    .HasMaxLength(10);
 
-            modelBuilder.Entity<Notification>()
-                .Property(n => n.NotificationType)
-                .HasConversion<string>();
+                entity.Property(u => u.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
 
+                entity.Property(u => u.JoinedDate)
+                    .IsRequired();
 
-            // Decimal Precision
+                entity.Property(u => u.CreatedAt)
+                    .IsRequired();
 
-            modelBuilder.Entity<Asset>()
-                .Property(a => a.BookValue)
-                .HasPrecision(18, 2);
+                entity.Property(u => u.UpdatedAt)
+                    .IsRequired();
 
+                entity.Property(u => u.IsDeleted)
+                    .IsRequired();
 
-            // User <-> UserSettings : One-to-One
+                entity.HasIndex(u => u.EmployeeId)
+                    .IsUnique();
 
-            modelBuilder.Entity<UserSettings>()
-                .HasKey(s => s.UserId);
+                entity.HasIndex(u => u.Email)
+                    .IsUnique();
 
-            modelBuilder.Entity<User>()
-                .HasOne(u => u.UserSettings)
-                .WithOne(s => s.User)
-                .HasForeignKey<UserSettings>(s => s.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                entity.HasQueryFilter(u => !u.IsDeleted);
+            });
 
-            // ServiceRequest <-> User : Requester
+            modelBuilder.Entity<UserSettings>(entity =>
+            {
+                entity.HasKey(us => us.UserId);
 
-            modelBuilder.Entity<ServiceRequest>()
-                .HasOne(sr => sr.Requester)
-                .WithMany(u => u.RequestedRequests)
-                .HasForeignKey(sr => sr.RequesterUserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(us => us.Theme)
+                    .IsRequired()
+                    .HasMaxLength(10);
 
-            // ServiceRequest <-> User : Assignee
+                entity.Property(us => us.TwoFactorEnabled)
+                    .IsRequired();
 
-            modelBuilder.Entity<ServiceRequest>()
-                .HasOne(sr => sr.Assignee)
-                .WithMany(u => u.AssignedRequests)
-                .HasForeignKey(sr => sr.AssigneeUserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(us => us.NotifyRequestUpdates)
+                    .IsRequired();
 
-            // ServiceRequest <-> Approval : One-to-One
+                entity.Property(us => us.NotifyApprovalAlerts)
+                    .IsRequired();
 
-            modelBuilder.Entity<Approval>()
-                .HasOne(a => a.ServiceRequest)
-                .WithOne(sr => sr.Approval)
-                .HasForeignKey<Approval>(a => a.RequestId)
-                .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(us => us.NotifySLAWarnings)
+                    .IsRequired();
 
-            // Approval <-> User : DecidedBy
+                entity.Property(us => us.NotifyAssetEvents)
+                    .IsRequired();
 
-            modelBuilder.Entity<Approval>()
-                .HasOne(a => a.DecidedBy)
-                .WithMany(u => u.DecidedApprovals)
-                .HasForeignKey(a => a.DecidedByUserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(us => us.NotifyEmailDigest)
+                    .IsRequired();
 
-            // ServiceRequest <-> Replies
+                entity.Property(us => us.UpdatedAt)
+                    .IsRequired();
 
-            modelBuilder.Entity<ServiceRequestReply>()
-                .HasOne(r => r.ServiceRequest)
-                .WithMany(sr => sr.Replies)
-                .HasForeignKey(r => r.RequestId)
-                .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(us => us.User)
+                    .WithOne(u => u.UserSettings)
+                    .HasForeignKey<UserSettings>(us => us.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
-            // ServiceRequest <-> Timeline
+            modelBuilder.Entity<Department>(entity =>
+            {
+                entity.HasKey(d => d.DepartmentId);
 
-            modelBuilder.Entity<ServiceRequestTimeline>()
-                .HasOne(t => t.ServiceRequest)
-                .WithMany(sr => sr.TimelineEntries)
-                .HasForeignKey(t => t.RequestId)
-                .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(d => d.DepartmentName)
+                    .IsRequired()
+                    .HasMaxLength(50);
 
-            // ServiceRequest <-> Attachments
+                entity.Property(d => d.DepartmentCode)
+                    .IsRequired()
+                    .HasMaxLength(10);
 
-            modelBuilder.Entity<ServiceRequestAttachment>()
-                .HasOne(a => a.ServiceRequest)
-                .WithMany(sr => sr.Attachments)
-                .HasForeignKey(a => a.RequestId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(d => d.Description)
+                    .HasMaxLength(250);
 
-            // Reply <-> Attachments
+                entity.Property(d => d.IsActive)
+                    .IsRequired();
 
-            modelBuilder.Entity<ServiceRequestAttachment>()
-                .HasOne(a => a.Reply)
-                .WithMany(r => r.Attachments)
-                .HasForeignKey(a => a.ReplyId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(d => d.CreatedAt)
+                    .IsRequired();
 
-            // User <-> Attachments : UploadedBy
+                entity.Property(d => d.UpdatedAt)
+                    .IsRequired();
 
-            modelBuilder.Entity<ServiceRequestAttachment>()
-                .HasOne(a => a.UploadedBy)
-                .WithMany(u => u.UploadedAttachments)
-                .HasForeignKey(a => a.UploadedByUserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(d => d.IsDeleted)
+                    .IsRequired();
 
-            // User <-> Department
+                entity.HasIndex(d => d.DepartmentCode)
+                    .IsUnique();
 
-            modelBuilder.Entity<User>()
-                .HasOne(u => u.Department)
-                .WithMany(d => d.Users)
-                .HasForeignKey(u => u.DepartmentId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.HasQueryFilter(d => !d.IsDeleted);
+            });
 
-            // DepartmentPersonnel <-> User
+            modelBuilder.Entity<DepartmentPersonnel>(entity =>
+            {
+                entity.HasKey(dp => dp.DepartmentPersonnelId);
 
-            modelBuilder.Entity<DepartmentPersonnel>()
-                .HasOne(dp => dp.User)
-                .WithMany(u => u.DepartmentPersonnels)
-                .HasForeignKey(dp => dp.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(dp => dp.UserId)
+                    .IsRequired();
 
-            // DepartmentPersonnel <-> Department
+                entity.Property(dp => dp.DepartmentId)
+                    .IsRequired();
 
-            modelBuilder.Entity<DepartmentPersonnel>()
-                .HasOne(dp => dp.Department)
-                .WithMany(d => d.DepartmentPersonnels)
-                .HasForeignKey(dp => dp.DepartmentId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(dp => dp.IsHOD)
+                    .IsRequired();
 
-            // RequestType <-> ServiceType
+                entity.Property(dp => dp.IsActive)
+                    .IsRequired();
 
-            modelBuilder.Entity<RequestType>()
-                .HasOne(rt => rt.ServiceType)
-                .WithMany(st => st.RequestTypes)
-                .HasForeignKey(rt => rt.ServiceTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(dp => dp.CreatedAt)
+                    .IsRequired();
 
-            // Technician Mapping <-> RequestType
+                entity.Property(dp => dp.UpdatedAt)
+                    .IsRequired();
 
-            modelBuilder.Entity<RequestTypeTechnicianMapping>()
-                .HasOne(m => m.RequestType)
-                .WithMany(rt => rt.RequestTypeTechnicianMappings)
-                .HasForeignKey(m => m.RequestTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(dp => dp.IsDeleted)
+                    .IsRequired();
 
-            // Technician Mapping <-> DepartmentPersonnel
+                entity.HasOne(dp => dp.User)
+                    .WithMany(u => u.DepartmentPersonnels)
+                    .HasForeignKey(dp => dp.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<RequestTypeTechnicianMapping>()
-                .HasOne(m => m.DepartmentPersonnel)
-                .WithMany(dp => dp.RequestTypeTechnicianMappings)
-                .HasForeignKey(m => m.DepartmentPersonnelId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(dp => dp.Department)
+                    .WithMany(d => d.DepartmentPersonnels)
+                    .HasForeignKey(dp => dp.DepartmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
-            // ServiceRequest <-> ServiceType
+                entity.HasIndex(dp => new { dp.UserId, dp.DepartmentId })
+                    .IsUnique();
 
-            modelBuilder.Entity<ServiceRequest>()
-                .HasOne(sr => sr.ServiceType)
-                .WithMany(st => st.ServiceRequests)
-                .HasForeignKey(sr => sr.ServiceTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.HasQueryFilter(dp => !dp.IsDeleted);
+            });
 
-            // ServiceRequest <-> RequestType
+            modelBuilder.Entity<ServiceType>(entity =>
+            {
+                entity.HasKey(st => st.ServiceTypeId);
 
-            modelBuilder.Entity<ServiceRequest>()
-                .HasOne(sr => sr.RequestType)
-                .WithMany(rt => rt.ServiceRequests)
-                .HasForeignKey(sr => sr.RequestTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(st => st.ServiceTypeName)
+                    .IsRequired()
+                    .HasMaxLength(20);
 
-            // ServiceRequest <-> Department
+                entity.Property(st => st.ServiceTypeCode)
+                    .IsRequired()
+                    .HasMaxLength(10);
 
-            modelBuilder.Entity<ServiceRequest>()
-                .HasOne(sr => sr.Department)
-                .WithMany(d => d.ServiceRequests)
-                .HasForeignKey(sr => sr.DepartmentId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(st => st.Description)
+                    .HasMaxLength(250);
 
-            // ServiceRequest <-> Status
+                entity.Property(st => st.IsActive)
+                    .IsRequired();
 
-            modelBuilder.Entity<ServiceRequest>()
-                .HasOne(sr => sr.Status)
-                .WithMany(st => st.ServiceRequests)
-                .HasForeignKey(sr => sr.StatusId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(st => st.CreatedAt)
+                    .IsRequired();
 
-            // Asset <-> User
+                entity.Property(st => st.UpdatedAt)
+                    .IsRequired();
 
-            modelBuilder.Entity<Asset>()
-                .HasOne(a => a.AssignedTo)
-                .WithMany(u => u.AssignedAssets)
-                .HasForeignKey(a => a.AssignedToUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                entity.Property(st => st.IsDeleted)
+                    .IsRequired();
 
-            // Asset <-> Department
+                entity.HasIndex(st => st.ServiceTypeCode)
+                    .IsUnique();
 
-            modelBuilder.Entity<Asset>()
-                .HasOne(a => a.Department)
-                .WithMany(d => d.Assets)
-                .HasForeignKey(a => a.DepartmentId)
-                .OnDelete(DeleteBehavior.SetNull);
+                entity.HasQueryFilter(st => !st.IsDeleted);
+            });
 
-            // User <-> Notifications
+            modelBuilder.Entity<RequestType>(entity =>
+            {
+                entity.HasKey(rt => rt.RequestTypeId);
 
-            modelBuilder.Entity<Notification>()
-                .HasOne(n => n.User)
-                .WithMany(u => u.Notifications)
-                .HasForeignKey(n => n.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(rt => rt.ServiceTypeId)
+                    .IsRequired();
 
-            // User <-> AuditLogs
+                entity.Property(rt => rt.RequestTypeName)
+                    .IsRequired()
+                    .HasMaxLength(100);
 
-            modelBuilder.Entity<AuditLog>()
-                .HasOne(al => al.Actor)
-                .WithMany(u => u.AuditLogs)
-                .HasForeignKey(al => al.ActorUserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(rt => rt.Description)
+                    .HasMaxLength(250);
 
+                entity.Property(rt => rt.RequiresApproval)
+                    .IsRequired();
 
-            // Unique Indexes
+                entity.Property(rt => rt.IsActive)
+                    .IsRequired();
 
-            modelBuilder.Entity<User>()
-                .HasIndex(u => u.EmployeeId)
-                .IsUnique();
+                entity.Property(rt => rt.CreatedAt)
+                    .IsRequired();
 
-            modelBuilder.Entity<User>()
-                .HasIndex(u => u.Email)
-                .IsUnique();
+                entity.Property(rt => rt.UpdatedAt)
+                    .IsRequired();
 
-            modelBuilder.Entity<Department>()
-                .HasIndex(d => d.DepartmentCode)
-                .IsUnique();
+                entity.Property(rt => rt.IsDeleted)
+                    .IsRequired();
 
-            modelBuilder.Entity<ServiceType>()
-                .HasIndex(st => st.ServiceTypeCode)
-                .IsUnique();
+                entity.HasOne(rt => rt.ServiceType)
+                    .WithMany(st => st.RequestTypes)
+                    .HasForeignKey(rt => rt.ServiceTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<RequestType>()
-                .HasIndex(rt => new { rt.ServiceTypeId, rt.RequestTypeName })
-                .IsUnique();
+                entity.HasIndex(rt => new { rt.ServiceTypeId, rt.RequestTypeName })
+                    .IsUnique();
 
-            modelBuilder.Entity<DepartmentPersonnel>()
-                .HasIndex(dp => new { dp.UserId, dp.DepartmentId })
-                .IsUnique();
+                entity.HasQueryFilter(rt => !rt.IsDeleted);
+            });
 
-            modelBuilder.Entity<RequestTypeTechnicianMapping>()
-                .HasIndex(m => new { m.RequestTypeId, m.DepartmentPersonnelId })
-                .IsUnique();
+            modelBuilder.Entity<RequestTypeTechnicianMapping>(entity =>
+            {
+                entity.HasKey(m => m.MappingId);
 
-            modelBuilder.Entity<ServiceRequestStatus>()
-                .HasIndex(s => s.StatusName)
-                .IsUnique();
+                entity.Property(m => m.RequestTypeId)
+                    .IsRequired();
 
-            modelBuilder.Entity<ServiceRequest>()
-                .HasIndex(sr => sr.RequestNumber)
-                .IsUnique();
+                entity.Property(m => m.DepartmentPersonnelId)
+                    .IsRequired();
 
-            modelBuilder.Entity<Asset>()
-                .HasIndex(a => a.AssetTag)
-                .IsUnique();
+                entity.Property(m => m.IsActive)
+                    .IsRequired();
 
-            modelBuilder.Entity<Asset>()
-                .HasIndex(a => a.SerialNumber)
-                .IsUnique();
+                entity.Property(m => m.CreatedAt)
+                    .IsRequired();
 
-            // Global Query Filters for Soft Delete
+                entity.Property(m => m.UpdatedAt)
+                    .IsRequired();
 
-            modelBuilder.Entity<User>()
-                .HasQueryFilter(u => !u.IsDeleted);
+                entity.Property(m => m.IsDeleted)
+                    .IsRequired();
 
-            modelBuilder.Entity<Department>()
-                .HasQueryFilter(d => !d.IsDeleted);
+                entity.HasOne(m => m.RequestType)
+                    .WithMany(rt => rt.RequestTypeTechnicianMappings)
+                    .HasForeignKey(m => m.RequestTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<DepartmentPersonnel>()
-                .HasQueryFilter(dp => !dp.IsDeleted);
+                entity.HasOne(m => m.DepartmentPersonnel)
+                    .WithMany(dp => dp.RequestTypeTechnicianMappings)
+                    .HasForeignKey(m => m.DepartmentPersonnelId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<ServiceType>()
-                .HasQueryFilter(st => !st.IsDeleted);
+                entity.HasIndex(m => new { m.RequestTypeId, m.DepartmentPersonnelId })
+                    .IsUnique();
 
-            modelBuilder.Entity<RequestType>()
-                .HasQueryFilter(rt => !rt.IsDeleted);
+                entity.HasQueryFilter(m => !m.IsDeleted);
+            });
 
-            modelBuilder.Entity<RequestTypeTechnicianMapping>()
-                .HasQueryFilter(m => !m.IsDeleted);
+            modelBuilder.Entity<ServiceRequestStatus>(entity =>
+            {
+                entity.HasKey(s => s.StatusId);
 
-            modelBuilder.Entity<ServiceRequest>()
-                .HasQueryFilter(sr => !sr.IsDeleted);
+                entity.Property(s => s.StatusName)
+                    .IsRequired()
+                    .HasMaxLength(50);
 
-            modelBuilder.Entity<Asset>()
-                .HasQueryFilter(a => !a.IsDeleted);
+                entity.Property(s => s.ColorCode)
+                    .HasMaxLength(100);
+
+                entity.Property(s => s.Description)
+                    .HasMaxLength(250);
+
+                entity.Property(s => s.IsActive)
+                    .IsRequired();
+
+                entity.Property(s => s.CreatedAt)
+                    .IsRequired();
+
+                entity.HasIndex(s => s.StatusName)
+                    .IsUnique();
+            });
+
+            modelBuilder.Entity<ServiceRequest>(entity =>
+            {
+                entity.HasKey(sr => sr.RequestId);
+
+                entity.Property(sr => sr.RequestNumber)
+                    .IsRequired()
+                    .HasMaxLength(20);
+
+                entity.Property(sr => sr.Title)
+                    .IsRequired()
+                    .HasMaxLength(150);
+
+                entity.Property(sr => sr.Description)
+                    .IsRequired();
+
+                entity.Property(sr => sr.ServiceTypeId)
+                    .IsRequired();
+
+                entity.Property(sr => sr.RequestTypeId)
+                    .IsRequired();
+
+                entity.Property(sr => sr.DepartmentId)
+                    .IsRequired();
+
+                entity.Property(sr => sr.RequesterUserId)
+                    .IsRequired();
+
+                entity.Property(sr => sr.StatusId)
+                    .IsRequired();
+
+                entity.Property(sr => sr.Priority)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(sr => sr.CreatedAt)
+                    .IsRequired();
+
+                entity.Property(sr => sr.UpdatedAt)
+                    .IsRequired();
+
+                entity.Property(sr => sr.IsDeleted)
+                    .IsRequired();
+
+                entity.HasOne(sr => sr.Requester)
+                    .WithMany(u => u.RequestedRequests)
+                    .HasForeignKey(sr => sr.RequesterUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(sr => sr.Assignee)
+                    .WithMany(u => u.AssignedRequests)
+                    .HasForeignKey(sr => sr.AssigneeUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(sr => sr.ServiceType)
+                    .WithMany(st => st.ServiceRequests)
+                    .HasForeignKey(sr => sr.ServiceTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(sr => sr.RequestType)
+                    .WithMany(rt => rt.ServiceRequests)
+                    .HasForeignKey(sr => sr.RequestTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(sr => sr.Department)
+                    .WithMany(d => d.ServiceRequests)
+                    .HasForeignKey(sr => sr.DepartmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(sr => sr.Status)
+                    .WithMany(s => s.ServiceRequests)
+                    .HasForeignKey(sr => sr.StatusId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(sr => sr.RequestNumber)
+                    .IsUnique();
+
+                entity.HasQueryFilter(sr => !sr.IsDeleted);
+            });
+
+            modelBuilder.Entity<ServiceRequestReply>(entity =>
+            {
+                entity.HasKey(r => r.ReplyId);
+
+                entity.Property(r => r.RequestId)
+                    .IsRequired();
+
+                entity.Property(r => r.AuthorUserId)
+                    .IsRequired();
+
+                entity.Property(r => r.Message)
+                    .IsRequired();
+
+                entity.Property(r => r.CreatedAt)
+                    .IsRequired();
+
+                entity.HasOne(r => r.ServiceRequest)
+                    .WithMany(sr => sr.Replies)
+                    .HasForeignKey(r => r.RequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.Author)
+                    .WithMany(u => u.Replies)
+                    .HasForeignKey(r => r.AuthorUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(r => r.StatusTransition)
+                    .WithMany()
+                    .HasForeignKey(r => r.StatusTransitionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ServiceRequestTimeline>(entity =>
+            {
+                entity.HasKey(t => t.TimelineId);
+
+                entity.Property(t => t.RequestId)
+                    .IsRequired();
+
+                entity.Property(t => t.StatusName)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(t => t.ChangedByUserId)
+                    .IsRequired();
+
+                entity.Property(t => t.ChangedAt)
+                    .IsRequired();
+
+                entity.Property(t => t.Note)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.HasOne(t => t.ServiceRequest)
+                    .WithMany(sr => sr.TimelineEntries)
+                    .HasForeignKey(t => t.RequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(t => t.ChangedBy)
+                    .WithMany(u => u.TimelineEntries)
+                    .HasForeignKey(t => t.ChangedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ServiceRequestAttachment>(entity =>
+            {
+                entity.HasKey(a => a.AttachmentId);
+
+                entity.Property(a => a.RequestId)
+                    .IsRequired();
+
+                entity.Property(a => a.FileName)
+                    .IsRequired()
+                    .HasMaxLength(256);
+
+                entity.Property(a => a.FileSizeKB)
+                    .IsRequired();
+
+                entity.Property(a => a.FileUrl)
+                    .IsRequired()
+                    .HasMaxLength(2048);
+
+                entity.Property(a => a.UploadedByUserId)
+                    .IsRequired();
+
+                entity.Property(a => a.UploadedAt)
+                    .IsRequired();
+
+                entity.HasOne(a => a.ServiceRequest)
+                    .WithMany(sr => sr.Attachments)
+                    .HasForeignKey(a => a.RequestId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(a => a.Reply)
+                    .WithMany(r => r.Attachments)
+                    .HasForeignKey(a => a.ReplyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(a => a.UploadedBy)
+                    .WithMany(u => u.UploadedAttachments)
+                    .HasForeignKey(a => a.UploadedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Approval>(entity =>
+            {
+                entity.HasKey(a => a.ApprovalId);
+
+                entity.Property(a => a.RequestId)
+                    .IsRequired();
+
+                entity.Property(a => a.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(a => a.Remarks)
+                    .HasMaxLength(1000);
+
+                entity.Property(a => a.SubmittedAt)
+                    .IsRequired();
+
+                entity.HasOne(a => a.ServiceRequest)
+                    .WithOne(sr => sr.Approval)
+                    .HasForeignKey<Approval>(a => a.RequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(a => a.DecidedBy)
+                    .WithMany(u => u.DecidedApprovals)
+                    .HasForeignKey(a => a.DecidedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Asset>(entity =>
+            {
+                entity.HasKey(a => a.AssetId);
+
+                entity.Property(a => a.AssetTag)
+                    .IsRequired()
+                    .HasMaxLength(30);
+
+                entity.Property(a => a.AssetName)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(a => a.Category)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(a => a.SerialNumber)
+                    .IsRequired()
+                    .HasMaxLength(15);
+
+                entity.Property(a => a.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(a => a.PurchaseDate)
+                    .IsRequired();
+
+                entity.Property(a => a.WarrantyUntil)
+                    .IsRequired();
+
+                entity.Property(a => a.BookValue)
+                    .IsRequired()
+                    .HasPrecision(18, 2);
+
+                entity.Property(a => a.CreatedAt)
+                    .IsRequired();
+
+                entity.Property(a => a.UpdatedAt)
+                    .IsRequired();
+
+                entity.Property(a => a.IsDeleted)
+                    .IsRequired();
+
+                entity.HasOne(a => a.AssignedTo)
+                    .WithMany(u => u.AssignedAssets)
+                    .HasForeignKey(a => a.AssignedToUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(a => a.Department)
+                    .WithMany(d => d.Assets)
+                    .HasForeignKey(a => a.DepartmentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(a => a.AssetTag)
+                    .IsUnique();
+
+                entity.HasIndex(a => a.SerialNumber)
+                    .IsUnique();
+
+                entity.HasQueryFilter(a => !a.IsDeleted);
+            });
+
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(n => n.NotificationId);
+
+                entity.Property(n => n.UserId)
+                    .IsRequired();
+
+                entity.Property(n => n.Title)
+                    .IsRequired()
+                    .HasMaxLength(150);
+
+                entity.Property(n => n.Message)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.Property(n => n.IsRead)
+                    .IsRequired();
+
+                entity.Property(n => n.NotificationType)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(n => n.CreatedAt)
+                    .IsRequired();
+
+                entity.HasOne(n => n.User)
+                    .WithMany(u => u.Notifications)
+                    .HasForeignKey(n => n.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasKey(al => al.AuditLogId);
+
+                entity.Property(al => al.Action)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(al => al.TargetType)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(al => al.TargetId)
+                    .HasMaxLength(50);
+
+                entity.Property(al => al.TargetDisplay)
+                    .HasMaxLength(100);
+
+                entity.Property(al => al.IpAddress)
+                    .HasMaxLength(45);
+
+                entity.Property(al => al.CreatedAt)
+                    .IsRequired();
+
+                entity.HasOne(al => al.Actor)
+                    .WithMany(u => u.AuditLogs)
+                    .HasForeignKey(al => al.ActorUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
         }
     }
 }
-
-/*
-OnDelete() has 4 Types — Must Remember
-
-
-Behavior	        Meaning
-Cascade	            Parent delete → child automatically delete
-Restrict	        Parent delete prevent/restrict if related records exist
-SetNull	            Parent delete → FK becomes NULL
-Default/NoAction	Database/provider default behavior
-
-
-Cascade
-→ UserSettings
-→ Approval
-→ Replies
-→ Timeline
-→ Notifications
-
-Restrict
-→ Most important references
-
-SetNull
-→ Asset AssignedTo
-→ Asset Department
-*/
