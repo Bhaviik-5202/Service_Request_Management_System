@@ -44,8 +44,8 @@ GO
 -- ============================================================
 CREATE TABLE dbo.Departments (
     DepartmentId INT IDENTITY(1,1) PRIMARY KEY,
-    DepartmentName NVARCHAR(100) NOT NULL UNIQUE,
-    DepartmentCode VARCHAR(10) NOT NULL UNIQUE,
+    DepartmentName NVARCHAR(100) NOT NULL,
+    DepartmentCode VARCHAR(10) NOT NULL,
     Description NVARCHAR(250) NULL,
     IsActive BIT NOT NULL DEFAULT 1,
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -55,14 +55,18 @@ CREATE TABLE dbo.Departments (
 );
 GO
 
+CREATE UNIQUE INDEX UQ_Departments_Name ON dbo.Departments(DepartmentName) WHERE IsDeleted = 0;
+CREATE UNIQUE INDEX UQ_Departments_Code ON dbo.Departments(DepartmentCode) WHERE IsDeleted = 0;
+GO
+
 -- ============================================================
 -- 2. TABLE: Users
 -- ============================================================
 CREATE TABLE dbo.Users (
     UserId INT IDENTITY(1,1) PRIMARY KEY,
-    EmployeeId VARCHAR(20) NOT NULL UNIQUE,
+    EmployeeId VARCHAR(20) NOT NULL,
     FullName NVARCHAR(100) NOT NULL,
-    Email NVARCHAR(256) NOT NULL UNIQUE,
+    Email NVARCHAR(256) NOT NULL,
     Role VARCHAR(20) NOT NULL DEFAULT 'Requestor' CHECK (Role IN ('Admin', 'HOD', 'Technician', 'Requestor')),
     DepartmentId INT NULL,
     Phone NVARCHAR(20) NULL,
@@ -77,8 +81,8 @@ CREATE TABLE dbo.Users (
 GO
 
 -- Indexes for Users
-CREATE INDEX IX_Users_Email ON dbo.Users(Email) WHERE IsDeleted = 0;
-CREATE INDEX IX_Users_EmployeeId ON dbo.Users(EmployeeId);
+CREATE UNIQUE INDEX UQ_Users_Email ON dbo.Users(Email) WHERE IsDeleted = 0;
+CREATE UNIQUE INDEX UQ_Users_EmployeeId ON dbo.Users(EmployeeId) WHERE IsDeleted = 0;
 GO
 
 -- ============================================================
@@ -121,8 +125,8 @@ GO
 -- ============================================================
 CREATE TABLE dbo.ServiceTypes (
     ServiceTypeId INT IDENTITY(1,1) PRIMARY KEY,
-    ServiceTypeName NVARCHAR(50) NOT NULL UNIQUE,
-    ServiceTypeCode VARCHAR(10) NOT NULL UNIQUE,
+    ServiceTypeName NVARCHAR(50) NOT NULL,
+    ServiceTypeCode VARCHAR(10) NOT NULL,
     Description NVARCHAR(250) NULL,
     IsActive BIT NOT NULL DEFAULT 1,
     CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -132,13 +136,17 @@ CREATE TABLE dbo.ServiceTypes (
 );
 GO
 
+CREATE UNIQUE INDEX UQ_ServiceTypes_Name ON dbo.ServiceTypes(ServiceTypeName) WHERE IsDeleted = 0;
+CREATE UNIQUE INDEX UQ_ServiceTypes_Code ON dbo.ServiceTypes(ServiceTypeCode) WHERE IsDeleted = 0;
+GO
+
 -- ============================================================
 -- 6. TABLE: RequestTypes
 -- ============================================================
 CREATE TABLE dbo.RequestTypes (
     RequestTypeId INT IDENTITY(1,1) PRIMARY KEY,
     ServiceTypeId INT NOT NULL,
-    RequestTypeName NVARCHAR(100) NOT NULL UNIQUE,
+    RequestTypeName NVARCHAR(100) NOT NULL,
     Description NVARCHAR(250) NULL,
     RequiresApproval BIT NOT NULL DEFAULT 0,
     IsActive BIT NOT NULL DEFAULT 1,
@@ -148,6 +156,9 @@ CREATE TABLE dbo.RequestTypes (
     DeletedAt DATETIME2 NULL,
     FOREIGN KEY (ServiceTypeId) REFERENCES dbo.ServiceTypes(ServiceTypeId) ON DELETE NO ACTION
 );
+GO
+
+CREATE UNIQUE INDEX UQ_RequestTypes_Name ON dbo.RequestTypes(RequestTypeName) WHERE IsDeleted = 0;
 GO
 
 -- ============================================================
@@ -185,7 +196,7 @@ GO
 -- ============================================================
 CREATE TABLE dbo.ServiceRequests (
     RequestId INT IDENTITY(1,1) PRIMARY KEY,
-    RequestNumber VARCHAR(20) NOT NULL UNIQUE,
+    RequestNumber VARCHAR(20) NOT NULL,
     Title NVARCHAR(150) NOT NULL,
     Description NVARCHAR(MAX) NOT NULL,
     ServiceTypeId INT NOT NULL,
@@ -208,7 +219,7 @@ CREATE TABLE dbo.ServiceRequests (
 );
 GO
 
-CREATE INDEX IX_ServiceRequests_RequestNumber ON dbo.ServiceRequests(RequestNumber) WHERE IsDeleted = 0;
+CREATE UNIQUE INDEX UQ_ServiceRequests_RequestNumber ON dbo.ServiceRequests(RequestNumber) WHERE IsDeleted = 0;
 CREATE INDEX IX_ServiceRequests_Requester ON dbo.ServiceRequests(RequesterUserId);
 CREATE INDEX IX_ServiceRequests_Assignee ON dbo.ServiceRequests(AssigneeUserId);
 GO
@@ -283,10 +294,10 @@ GO
 -- ============================================================
 CREATE TABLE dbo.Assets (
     AssetId INT IDENTITY(1,1) PRIMARY KEY,
-    AssetTag VARCHAR(30) NOT NULL UNIQUE,
+    AssetTag VARCHAR(30) NOT NULL,
     AssetName NVARCHAR(100) NOT NULL,
     Category NVARCHAR(50) NOT NULL,
-    SerialNumber NVARCHAR(100) NOT NULL UNIQUE,
+    SerialNumber NVARCHAR(100) NOT NULL,
     AssignedToUserId INT NULL,
     DepartmentId INT NULL,
     Status VARCHAR(15) NOT NULL DEFAULT 'Available' CHECK (Status IN ('InUse', 'Available', 'UnderRepair', 'Retired')),
@@ -302,8 +313,8 @@ CREATE TABLE dbo.Assets (
 );
 GO
 
-CREATE INDEX IX_Assets_AssetTag ON dbo.Assets(AssetTag) WHERE IsDeleted = 0;
-CREATE INDEX IX_Assets_SerialNumber ON dbo.Assets(SerialNumber) WHERE IsDeleted = 0;
+CREATE UNIQUE INDEX UQ_Assets_AssetTag ON dbo.Assets(AssetTag) WHERE IsDeleted = 0;
+CREATE UNIQUE INDEX UQ_Assets_SerialNumber ON dbo.Assets(SerialNumber) WHERE IsDeleted = 0;
 GO
 
 -- ============================================================

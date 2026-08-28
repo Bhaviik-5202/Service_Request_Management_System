@@ -10,7 +10,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-
     public class AssetsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -72,9 +71,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
             }
 
             var totalRecords = await query.CountAsync();
-
-            var totalPages = (int)Math.Ceiling(
-                totalRecords / (double)pageSize);
+            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
 
             var assets = await query
                 .OrderByDescending(a => a.CreatedAt)
@@ -88,13 +85,9 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     Category = a.Category,
                     SerialNumber = a.SerialNumber,
                     AssignedToUserId = a.AssignedToUserId,
-                    AssignedTo = a.AssignedTo != null
-                        ? a.AssignedTo.FullName
-                        : null,
+                    AssignedTo = a.AssignedTo != null ? a.AssignedTo.FullName : null,
                     DepartmentId = a.DepartmentId,
-                    Department = a.Department != null
-                        ? a.Department.DepartmentName
-                        : null,
+                    Department = a.Department != null ? a.Department.DepartmentName : null,
                     Status = a.Status,
                     PurchaseDate = a.PurchaseDate,
                     WarrantyUntil = a.WarrantyUntil,
@@ -243,6 +236,19 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context.Assets.Add(asset);
             await _context.SaveChangesAsync();
 
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = dto.AssignedToUserId,
+                Action = "Create",
+                TargetType = "Asset",
+                TargetId = asset.AssetId.ToString(),
+                TargetDisplay = asset.AssetTag,
+                Detail = $"Asset '{asset.AssetName}' ({asset.AssetTag}) created.",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
             var response = new AssetResponseDto
             {
                 AssetId = asset.AssetId,
@@ -343,6 +349,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
             asset.BookValue = dto.BookValue;
             asset.UpdatedAt = DateTime.UtcNow;
 
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = dto.AssignedToUserId,
+                Action = "Update",
+                TargetType = "Asset",
+                TargetId = asset.AssetId.ToString(),
+                TargetDisplay = asset.AssetTag,
+                Detail = $"Asset '{asset.AssetName}' ({asset.AssetTag}) updated.",
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             var response = new AssetResponseDto
@@ -388,6 +405,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
             asset.IsDeleted = true;
             asset.DeletedAt = DateTime.UtcNow;
             asset.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = asset.AssignedToUserId,
+                Action = "Delete",
+                TargetType = "Asset",
+                TargetId = asset.AssetId.ToString(),
+                TargetDisplay = asset.AssetTag,
+                Detail = $"Asset '{asset.AssetName}' ({asset.AssetTag}) deleted.",
+                CreatedAt = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
 
@@ -445,6 +473,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
             }
 
             asset.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = dto.AssignedToUserId,
+                Action = "Assign",
+                TargetType = "Asset",
+                TargetId = asset.AssetId.ToString(),
+                TargetDisplay = asset.AssetTag,
+                Detail = dto.AssignedToUserId.HasValue ? $"Asset assigned to user {dto.AssignedToUserId}." : "Asset unassigned.",
+                CreatedAt = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
 

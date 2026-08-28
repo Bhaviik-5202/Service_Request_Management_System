@@ -41,9 +41,7 @@ GO
 EXEC sp_MSforeachtable "ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL";
 GO
 
--- ============================================================
 -- 1. Departments
--- ============================================================
 SET IDENTITY_INSERT dbo.Departments ON;
 INSERT INTO dbo.Departments (DepartmentId, DepartmentName, DepartmentCode, Description, IsActive, CreatedAt, UpdatedAt, IsDeleted)
 VALUES 
@@ -56,9 +54,7 @@ VALUES
 SET IDENTITY_INSERT dbo.Departments OFF;
 GO
 
--- ============================================================
 -- 2. Users
--- ============================================================
 SET IDENTITY_INSERT dbo.Users ON;
 INSERT INTO dbo.Users (UserId, EmployeeId, FullName, Email, Role, DepartmentId, Phone, Status, JoinedDate, CreatedAt, UpdatedAt, IsDeleted)
 VALUES 
@@ -73,9 +69,7 @@ VALUES
 SET IDENTITY_INSERT dbo.Users OFF;
 GO
 
--- ============================================================
 -- 3. UserSettings
--- ============================================================
 INSERT INTO dbo.UserSettings (UserId, Theme, TwoFactorEnabled, NotifyRequestUpdates, NotifyApprovalAlerts, NotifySLAWarnings, NotifyAssetEvents, NotifyEmailDigest, UpdatedAt)
 VALUES 
     (1, 'light', 0, 1, 1, 1, 1, 1, SYSUTCDATETIME()),
@@ -88,23 +82,19 @@ VALUES
     (8, 'light', 0, 1, 0, 0, 0, 0, SYSUTCDATETIME());
 GO
 
--- ============================================================
 -- 4. DepartmentPersonnel
--- ============================================================
 SET IDENTITY_INSERT dbo.DepartmentPersonnel ON;
 INSERT INTO dbo.DepartmentPersonnel (DepartmentPersonnelId, UserId, DepartmentId, IsHOD, IsActive, CreatedAt, UpdatedAt, IsDeleted)
 VALUES 
-    (1, 2, 1, 1, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0), -- Divya (IT HOD)
-    (2, 3, 1, 0, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0), -- Ronak (IT Tech)
-    (3, 4, 1, 0, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0), -- Anita (IT Tech)
-    (4, 6, 2, 1, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0), -- Meena (Maint HOD)
-    (5, 5, 2, 0, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0); -- Suresh (Maint Tech)
+    (1, 2, 1, 1, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (2, 3, 1, 0, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (3, 4, 1, 0, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (4, 6, 2, 1, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (5, 5, 2, 0, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0);
 SET IDENTITY_INSERT dbo.DepartmentPersonnel OFF;
 GO
 
--- ============================================================
 -- 5. ServiceTypes
--- ============================================================
 SET IDENTITY_INSERT dbo.ServiceTypes ON;
 INSERT INTO dbo.ServiceTypes (ServiceTypeId, ServiceTypeName, ServiceTypeCode, Description, IsActive, CreatedAt, UpdatedAt, IsDeleted)
 VALUES 
@@ -114,9 +104,7 @@ VALUES
 SET IDENTITY_INSERT dbo.ServiceTypes OFF;
 GO
 
--- ============================================================
 -- 6. RequestTypes
--- ============================================================
 SET IDENTITY_INSERT dbo.RequestTypes ON;
 INSERT INTO dbo.RequestTypes (RequestTypeId, ServiceTypeId, RequestTypeName, Description, RequiresApproval, IsActive, CreatedAt, UpdatedAt, IsDeleted)
 VALUES 
@@ -133,23 +121,19 @@ VALUES
 SET IDENTITY_INSERT dbo.RequestTypes OFF;
 GO
 
--- ============================================================
 -- 7. RequestTypeTechnicianMappings
--- ============================================================
 SET IDENTITY_INSERT dbo.RequestTypeTechnicianMappings ON;
 INSERT INTO dbo.RequestTypeTechnicianMappings (MappingId, RequestTypeId, DepartmentPersonnelId, IsActive, CreatedAt, UpdatedAt, IsDeleted)
 VALUES 
-    (1, 1, 2, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0), -- Computer Issue -> Ronak
-    (2, 2, 3, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0), -- Software Request -> Anita
-    (3, 3, 3, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0), -- Hardware Request -> Anita
-    (4, 4, 2, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0), -- Network Issue -> Ronak
-    (5, 7, 5, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0); -- AC Repair -> Suresh
+    (1, 1, 2, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (2, 2, 3, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (3, 3, 3, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (4, 4, 2, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (5, 7, 5, 1, SYSUTCDATETIME(), SYSUTCDATETIME(), 0);
 SET IDENTITY_INSERT dbo.RequestTypeTechnicianMappings OFF;
 GO
 
--- ============================================================
 -- 8. ServiceRequestStatuses
--- ============================================================
 SET IDENTITY_INSERT dbo.ServiceRequestStatuses ON;
 INSERT INTO dbo.ServiceRequestStatuses (StatusId, StatusName, ColorCode, Description, IsActive, CreatedAt)
 VALUES 
@@ -163,9 +147,7 @@ VALUES
 SET IDENTITY_INSERT dbo.ServiceRequestStatuses OFF;
 GO
 
--- ============================================================
 -- 9. ServiceRequests
--- ============================================================
 SET IDENTITY_INSERT dbo.ServiceRequests ON;
 INSERT INTO dbo.ServiceRequests (RequestId, RequestNumber, Title, Description, ServiceTypeId, RequestTypeId, DepartmentId, RequesterUserId, AssigneeUserId, StatusId, Priority, CreatedAt, UpdatedAt, IsDeleted)
 VALUES 
@@ -176,9 +158,7 @@ VALUES
 SET IDENTITY_INSERT dbo.ServiceRequests OFF;
 GO
 
--- ============================================================
 -- 10. ServiceRequestReplies
--- ============================================================
 SET IDENTITY_INSERT dbo.ServiceRequestReplies ON;
 INSERT INTO dbo.ServiceRequestReplies (ReplyId, RequestId, AuthorUserId, Message, StatusTransitionId, CreatedAt)
 VALUES 
@@ -188,9 +168,7 @@ VALUES
 SET IDENTITY_INSERT dbo.ServiceRequestReplies OFF;
 GO
 
--- ============================================================
 -- 11. ServiceRequestTimeline
--- ============================================================
 SET IDENTITY_INSERT dbo.ServiceRequestTimeline ON;
 INSERT INTO dbo.ServiceRequestTimeline (TimelineId, RequestId, StatusName, ChangedByUserId, ChangedAt, Note)
 VALUES 
@@ -202,9 +180,7 @@ VALUES
 SET IDENTITY_INSERT dbo.ServiceRequestTimeline OFF;
 GO
 
--- ============================================================
 -- 12. ServiceRequestAttachments
--- ============================================================
 SET IDENTITY_INSERT dbo.ServiceRequestAttachments ON;
 INSERT INTO dbo.ServiceRequestAttachments (AttachmentId, RequestId, ReplyId, FileName, FileSizeKB, FileUrl, UploadedByUserId, UploadedAt)
 VALUES 
@@ -213,9 +189,7 @@ VALUES
 SET IDENTITY_INSERT dbo.ServiceRequestAttachments OFF;
 GO
 
--- ============================================================
 -- 13. Approvals
--- ============================================================
 SET IDENTITY_INSERT dbo.Approvals ON;
 INSERT INTO dbo.Approvals (ApprovalId, RequestId, Status, DecidedByUserId, DecidedAt, Remarks, SubmittedAt)
 VALUES 
@@ -224,9 +198,7 @@ VALUES
 SET IDENTITY_INSERT dbo.Approvals OFF;
 GO
 
--- ============================================================
 -- 14. Assets
--- ============================================================
 SET IDENTITY_INSERT dbo.Assets ON;
 INSERT INTO dbo.Assets (AssetId, AssetTag, AssetName, Category, SerialNumber, AssignedToUserId, DepartmentId, Status, PurchaseDate, WarrantyUntil, BookValue, CreatedAt, UpdatedAt, IsDeleted)
 VALUES 
@@ -238,9 +210,7 @@ VALUES
 SET IDENTITY_INSERT dbo.Assets OFF;
 GO
 
--- ============================================================
 -- 15. Notifications
--- ============================================================
 SET IDENTITY_INSERT dbo.Notifications ON;
 INSERT INTO dbo.Notifications (NotificationId, UserId, Title, Message, IsRead, NotificationType, CreatedAt)
 VALUES 
@@ -251,9 +221,7 @@ VALUES
 SET IDENTITY_INSERT dbo.Notifications OFF;
 GO
 
--- ============================================================
 -- 16. AuditLogs
--- ============================================================
 SET IDENTITY_INSERT dbo.AuditLogs ON;
 INSERT INTO dbo.AuditLogs (AuditLogId, ActorUserId, Action, TargetType, TargetId, TargetDisplay, Detail, IpAddress, CreatedAt)
 VALUES 

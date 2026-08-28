@@ -52,9 +52,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
             }
 
             var totalRecords = await query.CountAsync();
-
-            var totalPages = (int)Math.Ceiling(
-                totalRecords / (double)pageSize);
+            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
 
             var users = await query
                 .OrderByDescending(u => u.CreatedAt)
@@ -68,19 +66,12 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     Email = u.Email,
                     Role = u.Role,
                     DepartmentId = u.DepartmentId,
-                    DepartmentName = u.Department != null
-                        ? u.Department.DepartmentName
-                        : null,
+                    DepartmentName = u.Department != null ? u.Department.DepartmentName : null,
                     Phone = u.Phone,
                     Status = u.Status,
                     JoinedDate = u.JoinedDate,
-                    RequestsRaised = _context.ServiceRequests
-                        .Count(r => r.RequesterUserId == u.UserId),
-                    RequestsResolved = _context.ServiceRequests
-                        .Count(r =>
-                            r.AssigneeUserId == u.UserId &&
-                            r.Status != null &&
-                            r.Status.StatusName == "Resolved")
+                    RequestsRaised = _context.ServiceRequests.Count(r => r.RequesterUserId == u.UserId),
+                    RequestsResolved = _context.ServiceRequests.Count(r => r.AssigneeUserId == u.UserId && r.Status != null && r.Status.StatusName == "Resolved")
                 })
                 .ToListAsync();
 
@@ -127,15 +118,8 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Phone = user.Phone,
                 Status = user.Status,
                 JoinedDate = user.JoinedDate,
-
-                RequestsRaised = await _context.ServiceRequests
-                    .CountAsync(r => r.RequesterUserId == user.UserId),
-
-                RequestsResolved = await _context.ServiceRequests
-                    .CountAsync(r =>
-                        r.AssigneeUserId == user.UserId &&
-                        r.Status != null &&
-                        r.Status.StatusName == "Resolved")
+                RequestsRaised = await _context.ServiceRequests.CountAsync(r => r.RequesterUserId == user.UserId),
+                RequestsResolved = await _context.ServiceRequests.CountAsync(r => r.AssigneeUserId == user.UserId && r.Status != null && r.Status.StatusName == "Resolved")
             };
 
             return Ok(new ApiResponseDto<UserResponseDto>
@@ -186,7 +170,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             };
 
             _context.Users.Add(user);
-
             await _context.SaveChangesAsync();
 
             _context.UserSettings.Add(new UserSettings
@@ -194,6 +177,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 UserId = user.UserId,
                 Theme = "light",
                 UpdatedAt = DateTime.UtcNow
+            });
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = user.UserId,
+                Action = "Create",
+                TargetType = "User",
+                TargetId = user.UserId.ToString(),
+                TargetDisplay = user.FullName,
+                Detail = $"User {user.FullName} ({user.EmployeeId}) created with role {user.Role}.",
+                CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
@@ -245,6 +239,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
             user.Status = dto.Status;
             user.UpdatedAt = DateTime.UtcNow;
 
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = user.UserId,
+                Action = "Update",
+                TargetType = "User",
+                TargetId = user.UserId.ToString(),
+                TargetDisplay = user.FullName,
+                Detail = $"User {user.FullName} updated.",
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             var response = new UserResponseDto
@@ -284,6 +289,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             user.IsDeleted = true;
             user.DeletedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = user.UserId,
+                Action = "Delete",
+                TargetType = "User",
+                TargetId = user.UserId.ToString(),
+                TargetDisplay = user.FullName,
+                Detail = $"User {user.FullName} ({user.EmployeeId}) soft deleted.",
+                CreatedAt = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
 

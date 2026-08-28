@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Data;
+using ServiceRequestManagementSystem.API.DTOs.AuditLogs;
 using ServiceRequestManagementSystem.API.DTOs.Common;
-using ServiceRequestManagementSystem.API.Models;
 
 namespace ServiceRequestManagementSystem.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] 
+    [Route("api/[controller]")]
     public class AuditLogsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -18,7 +18,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<AuditLog>>>> GetAuditLogs(
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<AuditLogResponseDto>>>> GetAuditLogs(
             [FromQuery] int? actorUserId,
             [FromQuery] string? action,
             [FromQuery] string? targetType,
@@ -60,9 +60,22 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 .OrderByDescending(a => a.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
+                .Select(a => new AuditLogResponseDto
+                {
+                    AuditLogId = a.AuditLogId,
+                    ActorUserId = a.ActorUserId,
+                    ActorName = a.Actor != null ? a.Actor.FullName : null,
+                    Action = a.Action,
+                    TargetType = a.TargetType,
+                    TargetId = a.TargetId,
+                    TargetDisplay = a.TargetDisplay,
+                    Detail = a.Detail,
+                    IpAddress = a.IpAddress,
+                    CreatedAt = a.CreatedAt
+                })
                 .ToListAsync();
 
-            return Ok(new ApiResponseDto<IEnumerable<AuditLog>>
+            return Ok(new ApiResponseDto<IEnumerable<AuditLogResponseDto>>
             {
                 Success = true,
                 Message = "Audit logs fetched successfully.",
@@ -78,7 +91,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<ApiResponseDto<AuditLog>>> GetAuditLogById(long id)
+        public async Task<ActionResult<ApiResponseDto<AuditLogResponseDto>>> GetAuditLogById(long id)
         {
             var auditLog = await _context.AuditLogs
                 .Include(a => a.Actor)
@@ -86,18 +99,32 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             if (auditLog == null)
             {
-                return NotFound(new ApiResponseDto<AuditLog>
+                return NotFound(new ApiResponseDto<AuditLogResponseDto>
                 {
                     Success = false,
                     Message = "Audit log not found."
                 });
             }
 
-            return Ok(new ApiResponseDto<AuditLog>
+            var response = new AuditLogResponseDto
+            {
+                AuditLogId = auditLog.AuditLogId,
+                ActorUserId = auditLog.ActorUserId,
+                ActorName = auditLog.Actor?.FullName,
+                Action = auditLog.Action,
+                TargetType = auditLog.TargetType,
+                TargetId = auditLog.TargetId,
+                TargetDisplay = auditLog.TargetDisplay,
+                Detail = auditLog.Detail,
+                IpAddress = auditLog.IpAddress,
+                CreatedAt = auditLog.CreatedAt
+            };
+
+            return Ok(new ApiResponseDto<AuditLogResponseDto>
             {
                 Success = true,
                 Message = "Audit log fetched successfully.",
-                Data = auditLog
+                Data = response
             });
         }
     }

@@ -86,9 +86,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
             }
 
             var totalRecords = await query.CountAsync();
-
-            var totalPages = (int)Math.Ceiling(
-                totalRecords / (double)pageSize);
+            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
 
             var requests = await query
                 .OrderByDescending(r => r.CreatedAt)
@@ -105,9 +103,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     Department = r.Department!.DepartmentName,
                     Requester = r.Requester!.FullName,
                     RequesterEmail = r.Requester.Email,
-                    Assignee = r.Assignee != null
-                        ? r.Assignee.FullName
-                        : null,
+                    Assignee = r.Assignee != null ? r.Assignee.FullName : null,
                     Status = r.Status!.StatusName,
                     Priority = r.Priority,
                     CreatedAt = r.CreatedAt,
@@ -229,7 +225,11 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             if (!result.IsValid)
             {
-                return BadRequest(result.Errors.Select(x => x.ErrorMessage));
+                return BadRequest(new ApiResponseDto<ServiceRequestResponseDto>
+                {
+                    Success = false,
+                    Message = result.Errors.First().ErrorMessage
+                });
             }
 
             var serviceTypeExists = await _context.ServiceTypes
@@ -353,7 +353,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             };
 
             _context.ServiceRequests.Add(request);
-
             await _context.SaveChangesAsync();
 
             if (requestType.RequiresApproval)
@@ -375,6 +374,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Note = requestType.RequiresApproval
                     ? "Request raised and awaiting HOD approval."
                     : "Request raised."
+            });
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = requester.UserId,
+                Action = "Create",
+                TargetType = "ServiceRequest",
+                TargetId = request.RequestId.ToString(),
+                TargetDisplay = request.RequestNumber,
+                Detail = $"Service request '{request.Title}' ({request.RequestNumber}) created.",
+                CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
@@ -416,7 +426,11 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             if (!result.IsValid)
             {
-                return BadRequest(result.Errors.Select(x => x.ErrorMessage));
+                return BadRequest(new ApiResponseDto<bool>
+                {
+                    Success = false,
+                    Message = result.Errors.First().ErrorMessage
+                });
             }
 
             var request = await _context.ServiceRequests
@@ -461,6 +475,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     : dto.Note
             });
 
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = request.RequesterUserId,
+                Action = "StatusChange",
+                TargetType = "ServiceRequest",
+                TargetId = request.RequestId.ToString(),
+                TargetDisplay = request.RequestNumber,
+                Detail = $"Status updated to {status.StatusName}.",
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok(new ApiResponseDto<bool>
@@ -480,7 +505,11 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             if (!result.IsValid)
             {
-                return BadRequest(result.Errors.Select(x => x.ErrorMessage));
+                return BadRequest(new ApiResponseDto<bool>
+                {
+                    Success = false,
+                    Message = result.Errors.First().ErrorMessage
+                });
             }
 
             var request = await _context.ServiceRequests
@@ -523,6 +552,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 ChangedByUserId = request.RequesterUserId,
                 ChangedAt = DateTime.UtcNow,
                 Note = $"Request assigned to {technician.FullName}."
+            });
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = request.RequesterUserId,
+                Action = "Assign",
+                TargetType = "ServiceRequest",
+                TargetId = request.RequestId.ToString(),
+                TargetDisplay = request.RequestNumber,
+                Detail = $"Request assigned to technician {technician.FullName}.",
+                CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
@@ -578,6 +618,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Note = "Service request cancelled."
             });
 
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = request.RequesterUserId,
+                Action = "Cancel",
+                TargetType = "ServiceRequest",
+                TargetId = request.RequestId.ToString(),
+                TargetDisplay = request.RequestNumber,
+                Detail = $"Service request {request.RequestNumber} cancelled.",
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok(new ApiResponseDto<bool>
@@ -631,6 +682,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Note = "Service request reopened."
             });
 
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = request.RequesterUserId,
+                Action = "Reopen",
+                TargetType = "ServiceRequest",
+                TargetId = request.RequestId.ToString(),
+                TargetDisplay = request.RequestNumber,
+                Detail = $"Service request {request.RequestNumber} reopened.",
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok(new ApiResponseDto<bool>
@@ -670,9 +732,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     Role = r.Author.Role.ToString(),
                     Message = r.Message,
                     CreatedAt = r.CreatedAt,
-                    StatusTransition = r.StatusTransition != null
-                        ? r.StatusTransition.StatusName
-                        : null
+                    StatusTransition = r.StatusTransition != null ? r.StatusTransition.StatusName : null
                 })
                 .ToListAsync();
 
@@ -693,7 +753,11 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             if (!result.IsValid)
             {
-                return BadRequest(result.Errors.Select(x => x.ErrorMessage));
+                return BadRequest(new ApiResponseDto<ServiceRequestReplyResponseDto>
+                {
+                    Success = false,
+                    Message = result.Errors.First().ErrorMessage
+                });
             }
 
             var request = await _context.ServiceRequests
@@ -893,7 +957,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             };
 
             _context.ServiceRequestAttachments.Add(attachment);
-
             await _context.SaveChangesAsync();
 
             var response = new ServiceRequestAttachmentResponseDto

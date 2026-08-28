@@ -46,9 +46,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 query = query.Where(a => a.Status == status.Value);
 
             var totalRecords = await query.CountAsync();
-
-            var totalPages = (int)Math.Ceiling(
-                totalRecords / (double)pageSize);
+            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
 
             var approvals = await query
                 .OrderByDescending(a => a.SubmittedAt)
@@ -65,9 +63,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     Priority = a.ServiceRequest.Priority,
                     SubmittedAt = a.SubmittedAt,
                     Status = a.Status,
-                    DecidedBy = a.DecidedBy != null
-                        ? a.DecidedBy.FullName
-                        : null,
+                    DecidedBy = a.DecidedBy != null ? a.DecidedBy.FullName : null,
                     DecidedAt = a.DecidedAt,
                     Remarks = a.Remarks
                 })
@@ -232,6 +228,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
                             : dto.Remarks
                     });
             }
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = decidedByUser.UserId,
+                Action = dto.Decision == ApprovalStatus.Approved ? "Approve" : "Reject",
+                TargetType = "Approval",
+                TargetId = approval.ApprovalId.ToString(),
+                TargetDisplay = approval.ServiceRequest?.RequestNumber,
+                Detail = $"Approval decision {dto.Decision} with remarks: {dto.Remarks}",
+                CreatedAt = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
 
