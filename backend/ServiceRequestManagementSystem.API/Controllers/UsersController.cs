@@ -9,7 +9,7 @@ using ServiceRequestManagementSystem.API.Models;
 namespace ServiceRequestManagementSystem.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/users")]
+    [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -28,7 +28,9 @@ namespace ServiceRequestManagementSystem.API.Controllers
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
-            var query = _context.Users.Include(u => u.Department).AsQueryable();
+            var query = _context.Users
+                .Include(u => u.Department)
+                .AsQueryable();
 
             if (role.HasValue)
                 query = query.Where(u => u.Role == role.Value);
@@ -42,11 +44,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var s = search.Trim().ToLower();
-                query = query.Where(u => u.FullName.ToLower().Contains(s) || u.Email.ToLower().Contains(s) || u.EmployeeId.ToLower().Contains(s));
+
+                query = query.Where(u =>
+                    u.FullName.ToLower().Contains(s) ||
+                    u.Email.ToLower().Contains(s) ||
+                    u.EmployeeId.ToLower().Contains(s));
             }
 
             var totalRecords = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+
+            var totalPages = (int)Math.Ceiling(
+                totalRecords / (double)pageSize);
 
             var users = await query
                 .OrderByDescending(u => u.CreatedAt)
@@ -60,12 +68,19 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     Email = u.Email,
                     Role = u.Role,
                     DepartmentId = u.DepartmentId,
-                    DepartmentName = u.Department != null ? u.Department.DepartmentName : null,
+                    DepartmentName = u.Department != null
+                        ? u.Department.DepartmentName
+                        : null,
                     Phone = u.Phone,
                     Status = u.Status,
                     JoinedDate = u.JoinedDate,
-                    RequestsRaised = _context.ServiceRequests.Count(r => r.RequesterUserId == u.UserId),
-                    RequestsResolved = _context.ServiceRequests.Count(r => r.AssigneeUserId == u.UserId && r.Status != null && r.Status.StatusName == "Resolved")
+                    RequestsRaised = _context.ServiceRequests
+                        .Count(r => r.RequesterUserId == u.UserId),
+                    RequestsResolved = _context.ServiceRequests
+                        .Count(r =>
+                            r.AssigneeUserId == u.UserId &&
+                            r.Status != null &&
+                            r.Status.StatusName == "Resolved")
                 })
                 .ToListAsync();
 
@@ -92,7 +107,13 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 .FirstOrDefaultAsync(u => u.UserId == id);
 
             if (user == null)
-                return NotFound(new ApiResponseDto<UserResponseDto> { Success = false, Message = "User not found." });
+            {
+                return NotFound(new ApiResponseDto<UserResponseDto>
+                {
+                    Success = false,
+                    Message = "User not found."
+                });
+            }
 
             var response = new UserResponseDto
             {
@@ -106,22 +127,49 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Phone = user.Phone,
                 Status = user.Status,
                 JoinedDate = user.JoinedDate,
-                RequestsRaised = await _context.ServiceRequests.CountAsync(r => r.RequesterUserId == user.UserId),
-                RequestsResolved = await _context.ServiceRequests.CountAsync(r => r.AssigneeUserId == user.UserId && r.Status != null && r.Status.StatusName == "Resolved")
+
+                RequestsRaised = await _context.ServiceRequests
+                    .CountAsync(r => r.RequesterUserId == user.UserId),
+
+                RequestsResolved = await _context.ServiceRequests
+                    .CountAsync(r =>
+                        r.AssigneeUserId == user.UserId &&
+                        r.Status != null &&
+                        r.Status.StatusName == "Resolved")
             };
 
-            return Ok(new ApiResponseDto<UserResponseDto> { Success = true, Data = response });
+            return Ok(new ApiResponseDto<UserResponseDto>
+            {
+                Success = true,
+                Data = response
+            });
         }
 
         [HttpPost]
-        public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> CreateUser([FromBody] CreateUserDto dto)
+        public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> CreateUser(
+            [FromBody] CreateUserDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(new ApiResponseDto<UserResponseDto> { Success = false, Message = "Invalid payload." });
+            {
+                return BadRequest(new ApiResponseDto<UserResponseDto>
+                {
+                    Success = false,
+                    Message = "Invalid payload."
+                });
+            }
 
-            var exists = await _context.Users.AnyAsync(u => u.Email == dto.Email || u.EmployeeId == dto.EmployeeId);
+            var exists = await _context.Users.AnyAsync(u =>
+                u.Email == dto.Email ||
+                u.EmployeeId == dto.EmployeeId);
+
             if (exists)
-                return BadRequest(new ApiResponseDto<UserResponseDto> { Success = false, Message = "User with this email or employee ID already exists." });
+            {
+                return BadRequest(new ApiResponseDto<UserResponseDto>
+                {
+                    Success = false,
+                    Message = "User with this email or employee ID already exists."
+                });
+            }
 
             var user = new User
             {
@@ -138,9 +186,16 @@ namespace ServiceRequestManagementSystem.API.Controllers
             };
 
             _context.Users.Add(user);
+
             await _context.SaveChangesAsync();
 
-            _context.UserSettings.Add(new UserSettings { UserId = user.UserId, Theme = "light", UpdatedAt = DateTime.UtcNow });
+            _context.UserSettings.Add(new UserSettings
+            {
+                UserId = user.UserId,
+                Theme = "light",
+                UpdatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             var response = new UserResponseDto
@@ -156,15 +211,32 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 JoinedDate = user.JoinedDate
             };
 
-            return CreatedAtAction(nameof(GetUserById), new { id = user.UserId }, new ApiResponseDto<UserResponseDto> { Success = true, Message = "User created successfully.", Data = response });
+            return CreatedAtAction(
+                nameof(GetUserById),
+                new { id = user.UserId },
+                new ApiResponseDto<UserResponseDto>
+                {
+                    Success = true,
+                    Message = "User created successfully.",
+                    Data = response
+                });
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> UpdateUser(int id, [FromBody] UpdateUserDto dto)
+        public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> UpdateUser(
+            int id,
+            [FromBody] UpdateUserDto dto)
         {
             var user = await _context.Users.FindAsync(id);
+
             if (user == null)
-                return NotFound(new ApiResponseDto<UserResponseDto> { Success = false, Message = "User not found." });
+            {
+                return NotFound(new ApiResponseDto<UserResponseDto>
+                {
+                    Success = false,
+                    Message = "User not found."
+                });
+            }
 
             user.FullName = dto.FullName;
             user.Role = dto.Role;
@@ -188,21 +260,39 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 JoinedDate = user.JoinedDate
             };
 
-            return Ok(new ApiResponseDto<UserResponseDto> { Success = true, Message = "User updated successfully.", Data = response });
+            return Ok(new ApiResponseDto<UserResponseDto>
+            {
+                Success = true,
+                Message = "User updated successfully.",
+                Data = response
+            });
         }
 
         [HttpDelete("{id}")]
         public async Task<ActionResult<ApiResponseDto<bool>>> DeleteUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
+
             if (user == null)
-                return NotFound(new ApiResponseDto<bool> { Success = false, Message = "User not found." });
+            {
+                return NotFound(new ApiResponseDto<bool>
+                {
+                    Success = false,
+                    Message = "User not found."
+                });
+            }
 
             user.IsDeleted = true;
             user.DeletedAt = DateTime.UtcNow;
+
             await _context.SaveChangesAsync();
 
-            return Ok(new ApiResponseDto<bool> { Success = true, Message = "User soft deleted successfully.", Data = true });
+            return Ok(new ApiResponseDto<bool>
+            {
+                Success = true,
+                Message = "User soft deleted successfully.",
+                Data = true
+            });
         }
     }
 }

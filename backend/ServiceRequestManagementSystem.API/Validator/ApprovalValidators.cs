@@ -1,5 +1,6 @@
 using FluentValidation;
 using ServiceRequestManagementSystem.API.DTOs.Approvals;
+using ServiceRequestManagementSystem.API.Enums;
 
 namespace ServiceRequestManagementSystem.API.Validator
 {
@@ -8,8 +9,10 @@ namespace ServiceRequestManagementSystem.API.Validator
         public ApprovalDecisionDtoValidator()
         {
             RuleFor(x => x.Decision)
-                .IsInEnum()
-                .WithMessage("Valid approval decision (Approved or Rejected) is required.");
+                .Must(decision =>
+                    decision == ApprovalStatus.Approved ||
+                    decision == ApprovalStatus.Rejected)
+                .WithMessage("Decision must be Approved or Rejected.");
 
             RuleFor(x => x.Remarks)
                 .MaximumLength(1000)

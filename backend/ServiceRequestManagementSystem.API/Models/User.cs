@@ -30,8 +30,6 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime? DeletedAt { get; set; }
 
-        // Relationships
-
         public virtual Department? Department { get; set; }
 
         public virtual UserSettings? UserSettings { get; set; }

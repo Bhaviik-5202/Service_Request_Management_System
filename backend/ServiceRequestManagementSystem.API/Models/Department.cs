@@ -1,5 +1,3 @@
-using ServiceRequestManagementSystem.API.Models;
-
 namespace ServiceRequestManagementSystem.API.Models
 {
     public class Department

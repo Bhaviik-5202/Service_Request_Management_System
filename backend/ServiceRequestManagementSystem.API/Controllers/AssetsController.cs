@@ -9,7 +9,8 @@ using ServiceRequestManagementSystem.API.Models;
 namespace ServiceRequestManagementSystem.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/assets")]
+    [Route("api/[controller]")]
+
     public class AssetsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -29,13 +30,27 @@ namespace ServiceRequestManagementSystem.API.Controllers
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
+            if (pageNumber < 1)
+                pageNumber = 1;
+
+            if (pageSize < 1)
+                pageSize = 10;
+
+            if (pageSize > 100)
+                pageSize = 100;
+
             var query = _context.Assets
-                .Include(a => a.Department)
+                .Where(a => !a.IsDeleted)
                 .Include(a => a.AssignedTo)
+                .Include(a => a.Department)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(category))
-                query = query.Where(a => a.Category.ToLower() == category.Trim().ToLower());
+            {
+                var categoryText = category.Trim().ToLower();
+                query = query.Where(a =>
+                    a.Category.ToLower().Contains(categoryText));
+            }
 
             if (status.HasValue)
                 query = query.Where(a => a.Status == status.Value);
@@ -48,16 +63,20 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var s = search.Trim().ToLower();
-                query = query.Where(a => a.AssetTag.ToLower().Contains(s) ||
-                                          a.AssetName.ToLower().Contains(s) ||
-                                          a.SerialNumber.ToLower().Contains(s));
+                var searchText = search.Trim().ToLower();
+
+                query = query.Where(a =>
+                    a.AssetTag.ToLower().Contains(searchText) ||
+                    a.AssetName.ToLower().Contains(searchText) ||
+                    a.SerialNumber.ToLower().Contains(searchText));
             }
 
             var totalRecords = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
 
-            var items = await query
+            var totalPages = (int)Math.Ceiling(
+                totalRecords / (double)pageSize);
+
+            var assets = await query
                 .OrderByDescending(a => a.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -68,10 +87,14 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     AssetName = a.AssetName,
                     Category = a.Category,
                     SerialNumber = a.SerialNumber,
-                    AssignedTo = a.AssignedTo != null ? a.AssignedTo.FullName : null,
                     AssignedToUserId = a.AssignedToUserId,
-                    Department = a.Department != null ? a.Department.DepartmentName : null,
+                    AssignedTo = a.AssignedTo != null
+                        ? a.AssignedTo.FullName
+                        : null,
                     DepartmentId = a.DepartmentId,
+                    Department = a.Department != null
+                        ? a.Department.DepartmentName
+                        : null,
                     Status = a.Status,
                     PurchaseDate = a.PurchaseDate,
                     WarrantyUntil = a.WarrantyUntil,
@@ -83,7 +106,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
             {
                 Success = true,
                 Message = "Assets fetched successfully.",
-                Data = items,
+                Data = assets,
                 Pagination = new PaginationMetadataDto
                 {
                     PageNumber = pageNumber,
@@ -97,43 +120,109 @@ namespace ServiceRequestManagementSystem.API.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> GetAssetById(int id)
         {
-            var a = await _context.Assets
-                .Include(ast => ast.Department)
-                .Include(ast => ast.AssignedTo)
-                .FirstOrDefaultAsync(ast => ast.AssetId == id);
+            var asset = await _context.Assets
+                .Where(a => !a.IsDeleted)
+                .Include(a => a.AssignedTo)
+                .Include(a => a.Department)
+                .FirstOrDefaultAsync(a => a.AssetId == id);
 
-            if (a == null)
-                return NotFound(new ApiResponseDto<AssetResponseDto> { Success = false, Message = "Asset not found." });
+            if (asset == null)
+            {
+                return NotFound(new ApiResponseDto<AssetResponseDto>
+                {
+                    Success = false,
+                    Message = "Asset not found."
+                });
+            }
 
             var response = new AssetResponseDto
             {
-                AssetId = a.AssetId,
-                AssetTag = a.AssetTag,
-                AssetName = a.AssetName,
-                Category = a.Category,
-                SerialNumber = a.SerialNumber,
-                AssignedTo = a.AssignedTo?.FullName,
-                AssignedToUserId = a.AssignedToUserId,
-                Department = a.Department?.DepartmentName,
-                DepartmentId = a.DepartmentId,
-                Status = a.Status,
-                PurchaseDate = a.PurchaseDate,
-                WarrantyUntil = a.WarrantyUntil,
-                BookValue = a.BookValue
+                AssetId = asset.AssetId,
+                AssetTag = asset.AssetTag,
+                AssetName = asset.AssetName,
+                Category = asset.Category,
+                SerialNumber = asset.SerialNumber,
+                AssignedToUserId = asset.AssignedToUserId,
+                AssignedTo = asset.AssignedTo?.FullName,
+                DepartmentId = asset.DepartmentId,
+                Department = asset.Department?.DepartmentName,
+                Status = asset.Status,
+                PurchaseDate = asset.PurchaseDate,
+                WarrantyUntil = asset.WarrantyUntil,
+                BookValue = asset.BookValue
             };
 
-            return Ok(new ApiResponseDto<AssetResponseDto> { Success = true, Data = response });
+            return Ok(new ApiResponseDto<AssetResponseDto>
+            {
+                Success = true,
+                Message = "Asset fetched successfully.",
+                Data = response
+            });
         }
 
         [HttpPost]
-        public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> CreateAsset([FromBody] CreateAssetDto dto)
+        public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> CreateAsset(
+            [FromBody] CreateAssetDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(new ApiResponseDto<AssetResponseDto> { Success = false, Message = "Validation failed." });
+            var assetExists = await _context.Assets
+                .AnyAsync(a =>
+                    !a.IsDeleted &&
+                    (a.AssetTag == dto.AssetTag ||
+                     a.SerialNumber == dto.SerialNumber));
 
-            var tagExists = await _context.Assets.AnyAsync(a => a.AssetTag == dto.AssetTag || a.SerialNumber == dto.SerialNumber);
-            if (tagExists)
-                return BadRequest(new ApiResponseDto<AssetResponseDto> { Success = false, Message = "Asset tag or serial number already exists." });
+            if (assetExists)
+            {
+                return BadRequest(new ApiResponseDto<AssetResponseDto>
+                {
+                    Success = false,
+                    Message = "Asset tag or serial number already exists."
+                });
+            }
+
+            if (dto.DepartmentId.HasValue)
+            {
+                var departmentExists = await _context.Departments
+                    .AnyAsync(d =>
+                        d.DepartmentId == dto.DepartmentId.Value &&
+                        !d.IsDeleted &&
+                        d.IsActive);
+
+                if (!departmentExists)
+                {
+                    return BadRequest(new ApiResponseDto<AssetResponseDto>
+                    {
+                        Success = false,
+                        Message = "Invalid or inactive department."
+                    });
+                }
+            }
+
+            if (dto.AssignedToUserId.HasValue)
+            {
+                var userExists = await _context.Users
+                    .AnyAsync(u =>
+                        u.UserId == dto.AssignedToUserId.Value &&
+                        !u.IsDeleted &&
+                        u.Status == UserStatus.Active);
+
+                if (!userExists)
+                {
+                    return BadRequest(new ApiResponseDto<AssetResponseDto>
+                    {
+                        Success = false,
+                        Message = "Invalid or inactive assigned user."
+                    });
+                }
+            }
+
+            if (dto.WarrantyUntil < dto.PurchaseDate)
+            {
+                return BadRequest(new ApiResponseDto<AssetResponseDto>
+                {
+                    Success = false,
+                    Message = "Warranty date cannot be earlier than purchase date."
+                });
+            }
 
             var asset = new Asset
             {
@@ -161,19 +250,88 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 AssetName = asset.AssetName,
                 Category = asset.Category,
                 SerialNumber = asset.SerialNumber,
+                AssignedToUserId = asset.AssignedToUserId,
+                DepartmentId = asset.DepartmentId,
                 Status = asset.Status,
+                PurchaseDate = asset.PurchaseDate,
+                WarrantyUntil = asset.WarrantyUntil,
                 BookValue = asset.BookValue
             };
 
-            return CreatedAtAction(nameof(GetAssetById), new { id = asset.AssetId }, new ApiResponseDto<AssetResponseDto> { Success = true, Message = "Asset created successfully.", Data = response });
+            return CreatedAtAction(
+                nameof(GetAssetById),
+                new { id = asset.AssetId },
+                new ApiResponseDto<AssetResponseDto>
+                {
+                    Success = true,
+                    Message = "Asset created successfully.",
+                    Data = response
+                });
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> UpdateAsset(int id, [FromBody] UpdateAssetDto dto)
+        public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> UpdateAsset(
+            int id,
+            [FromBody] UpdateAssetDto dto)
         {
-            var asset = await _context.Assets.FindAsync(id);
+            var asset = await _context.Assets
+                .FirstOrDefaultAsync(a =>
+                    a.AssetId == id &&
+                    !a.IsDeleted);
+
             if (asset == null)
-                return NotFound(new ApiResponseDto<AssetResponseDto> { Success = false, Message = "Asset not found." });
+            {
+                return NotFound(new ApiResponseDto<AssetResponseDto>
+                {
+                    Success = false,
+                    Message = "Asset not found."
+                });
+            }
+
+            if (dto.DepartmentId.HasValue)
+            {
+                var departmentExists = await _context.Departments
+                    .AnyAsync(d =>
+                        d.DepartmentId == dto.DepartmentId.Value &&
+                        !d.IsDeleted &&
+                        d.IsActive);
+
+                if (!departmentExists)
+                {
+                    return BadRequest(new ApiResponseDto<AssetResponseDto>
+                    {
+                        Success = false,
+                        Message = "Invalid or inactive department."
+                    });
+                }
+            }
+
+            if (dto.AssignedToUserId.HasValue)
+            {
+                var userExists = await _context.Users
+                    .AnyAsync(u =>
+                        u.UserId == dto.AssignedToUserId.Value &&
+                        !u.IsDeleted &&
+                        u.Status == UserStatus.Active);
+
+                if (!userExists)
+                {
+                    return BadRequest(new ApiResponseDto<AssetResponseDto>
+                    {
+                        Success = false,
+                        Message = "Invalid or inactive assigned user."
+                    });
+                }
+            }
+
+            if (dto.WarrantyUntil < dto.PurchaseDate)
+            {
+                return BadRequest(new ApiResponseDto<AssetResponseDto>
+                {
+                    Success = false,
+                    Message = "Warranty date cannot be earlier than purchase date."
+                });
+            }
 
             asset.AssetName = dto.AssetName;
             asset.Category = dto.Category;
@@ -194,36 +352,41 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 AssetName = asset.AssetName,
                 Category = asset.Category,
                 SerialNumber = asset.SerialNumber,
+                AssignedToUserId = asset.AssignedToUserId,
+                DepartmentId = asset.DepartmentId,
                 Status = asset.Status,
+                PurchaseDate = asset.PurchaseDate,
+                WarrantyUntil = asset.WarrantyUntil,
                 BookValue = asset.BookValue
             };
 
-            return Ok(new ApiResponseDto<AssetResponseDto> { Success = true, Message = "Asset updated successfully.", Data = response });
+            return Ok(new ApiResponseDto<AssetResponseDto>
+            {
+                Success = true,
+                Message = "Asset updated successfully.",
+                Data = response
+            });
         }
 
         [HttpDelete("{id}")]
         public async Task<ActionResult<ApiResponseDto<bool>>> DeleteAsset(int id)
         {
-            var asset = await _context.Assets.FindAsync(id);
+            var asset = await _context.Assets
+                .FirstOrDefaultAsync(a =>
+                    a.AssetId == id &&
+                    !a.IsDeleted);
+
             if (asset == null)
-                return NotFound(new ApiResponseDto<bool> { Success = false, Message = "Asset not found." });
+            {
+                return NotFound(new ApiResponseDto<bool>
+                {
+                    Success = false,
+                    Message = "Asset not found."
+                });
+            }
 
             asset.IsDeleted = true;
             asset.DeletedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            return Ok(new ApiResponseDto<bool> { Success = true, Message = "Asset soft deleted successfully.", Data = true });
-        }
-
-        [HttpPut("{id}/assign")]
-        public async Task<ActionResult<ApiResponseDto<bool>>> AssignAsset(int id, [FromBody] AssignAssetDto dto)
-        {
-            var asset = await _context.Assets.FindAsync(id);
-            if (asset == null)
-                return NotFound(new ApiResponseDto<bool> { Success = false, Message = "Asset not found." });
-
-            asset.AssignedToUserId = dto.AssignedToUserId;
-            asset.Status = dto.AssignedToUserId.HasValue ? AssetStatus.InUse : AssetStatus.Available;
             asset.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -231,7 +394,66 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool>
             {
                 Success = true,
-                Message = dto.AssignedToUserId.HasValue ? "Asset assigned to employee successfully." : "Asset unassigned successfully.",
+                Message = "Asset deleted successfully.",
+                Data = true
+            });
+        }
+
+        [HttpPut("{id}/assign")]
+        public async Task<ActionResult<ApiResponseDto<bool>>> AssignAsset(
+            int id,
+            [FromBody] AssignAssetDto dto)
+        {
+            var asset = await _context.Assets
+                .FirstOrDefaultAsync(a =>
+                    a.AssetId == id &&
+                    !a.IsDeleted);
+
+            if (asset == null)
+            {
+                return NotFound(new ApiResponseDto<bool>
+                {
+                    Success = false,
+                    Message = "Asset not found."
+                });
+            }
+
+            if (!dto.AssignedToUserId.HasValue)
+            {
+                asset.AssignedToUserId = null;
+                asset.Status = AssetStatus.Available;
+            }
+            else
+            {
+                var userExists = await _context.Users
+                    .AnyAsync(u =>
+                        u.UserId == dto.AssignedToUserId.Value &&
+                        !u.IsDeleted &&
+                        u.Status == UserStatus.Active);
+
+                if (!userExists)
+                {
+                    return BadRequest(new ApiResponseDto<bool>
+                    {
+                        Success = false,
+                        Message = "Invalid or inactive user."
+                    });
+                }
+
+                asset.AssignedToUserId = dto.AssignedToUserId.Value;
+                asset.Status = AssetStatus.InUse;
+            }
+
+            asset.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new ApiResponseDto<bool>
+            {
+                Success = true,
+                Message = dto.AssignedToUserId.HasValue
+                    ? "Asset assigned successfully."
+                    : "Asset unassigned successfully.",
                 Data = true
             });
         }

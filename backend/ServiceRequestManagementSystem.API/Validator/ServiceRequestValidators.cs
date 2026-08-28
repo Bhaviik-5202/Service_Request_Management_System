@@ -70,6 +70,11 @@ namespace ServiceRequestManagementSystem.API.Validator
             RuleFor(x => x.Message)
                 .NotEmpty()
                 .WithMessage("Reply message content cannot be empty.");
+
+            RuleFor(x => x.StatusTransitionId)
+                .GreaterThan(0)
+                .When(x => x.StatusTransitionId.HasValue)
+                .WithMessage("Status transition ID must be greater than 0.");
         }
     }
 }

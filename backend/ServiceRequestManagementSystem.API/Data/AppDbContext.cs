@@ -161,6 +161,11 @@ namespace ServiceRequestManagementSystem.API.Data
                 entity.HasIndex(d => d.DepartmentCode)
                     .IsUnique();
 
+                entity.HasMany(d => d.Users)
+                    .WithOne(u => u.Department)
+                    .HasForeignKey(u => u.DepartmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 entity.HasQueryFilter(d => !d.IsDeleted);
             });
 

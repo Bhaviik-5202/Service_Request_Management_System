@@ -8,7 +8,7 @@ using ServiceRequestManagementSystem.API.Enums;
 namespace ServiceRequestManagementSystem.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/dashboard")]
+    [Route("api/[controller]")]
     public class DashboardController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -21,28 +21,69 @@ namespace ServiceRequestManagementSystem.API.Controllers
         [HttpGet("summary")]
         public async Task<ActionResult<ApiResponseDto<DashboardSummaryDto>>> GetSummary()
         {
-            var totalRequests = await _context.ServiceRequests.CountAsync();
-            var pendingApprovals = await _context.Approvals.CountAsync(a => a.Status == ApprovalStatus.Pending);
-            var activeUsers = await _context.Users.CountAsync(u => u.Status == UserStatus.Active);
-            var totalAssets = await _context.Assets.CountAsync();
+            var requests = _context.ServiceRequests
+                .Where(r => !r.IsDeleted);
 
-            var openRequests = await _context.ServiceRequests.CountAsync(r => r.Status != null && r.Status.StatusName == "Open");
-            var inProgressRequests = await _context.ServiceRequests.CountAsync(r => r.Status != null && r.Status.StatusName == "In Progress");
-            var resolvedRequests = await _context.ServiceRequests.CountAsync(r => r.Status != null && r.Status.StatusName == "Resolved");
-            var closedRequests = await _context.ServiceRequests.CountAsync(r => r.Status != null && r.Status.StatusName == "Closed");
+            var totalRequests = await requests.CountAsync();
 
-            var today = DateTime.UtcNow.Date;
-            var resolvedToday = await _context.ServiceRequests.CountAsync(r => r.Status != null && r.Status.StatusName == "Resolved" && r.UpdatedAt >= today);
+            var pendingApprovals = await _context.Approvals
+                .CountAsync(a => a.Status == ApprovalStatus.Pending);
 
-            var priorityBreakdown = await _context.ServiceRequests
+            var activeUsers = await _context.Users
+                .CountAsync(u => !u.IsDeleted && u.Status == UserStatus.Active);
+
+            var totalAssets = await _context.Assets
+                .CountAsync(a => !a.IsDeleted);
+
+            var openRequests = await requests
+                .CountAsync(r => r.Status!.StatusName == "Open");
+
+            var inProgressRequests = await requests
+                .CountAsync(r => r.Status!.StatusName == "In Progress");
+
+            var resolvedRequests = await requests
+                .CountAsync(r => r.Status!.StatusName == "Resolved");
+
+            var closedRequests = await requests
+                .CountAsync(r => r.Status!.StatusName == "Closed");
+
+            var resolvedToday = await requests
+                .CountAsync(r => r.Status!.StatusName == "Resolved" && r.UpdatedAt.Date == DateTime.UtcNow.Date);
+
+            var myAssignedRequests = await requests
+                .CountAsync(r => r.AssigneeUserId != null);
+
+            var priorityBreakdown = await requests
                 .GroupBy(r => r.Priority)
-                .ToDictionaryAsync(g => g.Key.ToString(), g => g.Count());
+                .Select(g => new
+                {
+                    Priority = g.Key.ToString(),
+                    Count = g.Count()
+                })
+                .ToDictionaryAsync(x => x.Priority, x => x.Count);
 
-            var statusBreakdown = await _context.ServiceRequests
+            var statusBreakdown = await requests
                 .Include(r => r.Status)
-                .Where(r => r.Status != null)
                 .GroupBy(r => r.Status!.StatusName)
-                .ToDictionaryAsync(g => g.Key, g => g.Count());
+                .Select(g => new
+                {
+                    Status = g.Key,
+                    Count = g.Count()
+                })
+                .ToDictionaryAsync(x => x.Status, x => x.Count);
+
+            var averageResolutionHours = await requests
+                .Where(r => r.Status!.StatusName == "Resolved")
+                .Select(r => EF.Functions.DateDiffHour(r.CreatedAt, r.UpdatedAt))
+                .DefaultIfEmpty()
+                .AverageAsync();
+
+            var totalResolved = await requests
+                .CountAsync(r => r.Status!.StatusName == "Resolved");
+
+            var slaComplianceRate = totalResolved == 0
+                ? 0
+                : 100.0;
 
             var summary = new DashboardSummaryDto
             {
@@ -54,15 +95,20 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 InProgressRequests = inProgressRequests,
                 ResolvedRequests = resolvedRequests,
                 ClosedRequests = closedRequests,
-                MyAssignedRequests = 0,
+                MyAssignedRequests = myAssignedRequests,
                 ResolvedToday = resolvedToday,
-                AvgResolutionTimeHours = 4.2,
-                SlaComplianceRate = 94.5,
+                AvgResolutionTimeHours = averageResolutionHours,
+                SlaComplianceRate = slaComplianceRate,
                 PriorityBreakdown = priorityBreakdown,
                 StatusBreakdown = statusBreakdown
             };
 
-            return Ok(new ApiResponseDto<DashboardSummaryDto> { Success = true, Data = summary });
+            return Ok(new ApiResponseDto<DashboardSummaryDto>
+            {
+                Success = true,
+                Message = "Dashboard summary fetched successfully.",
+                Data = summary
+            });
         }
     }
 }

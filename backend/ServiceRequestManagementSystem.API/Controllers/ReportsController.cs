@@ -3,11 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Data;
 using ServiceRequestManagementSystem.API.DTOs.Common;
 using ServiceRequestManagementSystem.API.DTOs.Dashboard;
+using ServiceRequestManagementSystem.API.Enums;
 
 namespace ServiceRequestManagementSystem.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/reports")]
+    [Route("api/[controller]")]
     public class ReportsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -17,69 +18,122 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        [HttpGet("trends")]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<TrendsReportDto>>>> GetTrendsReport()
-        {
-            var trends = new List<TrendsReportDto>
-            {
-                new TrendsReportDto { Month = "Jan", CreatedCount = 45, ResolvedCount = 40 },
-                new TrendsReportDto { Month = "Feb", CreatedCount = 52, ResolvedCount = 48 },
-                new TrendsReportDto { Month = "Mar", CreatedCount = 61, ResolvedCount = 58 },
-                new TrendsReportDto { Month = "Apr", CreatedCount = 58, ResolvedCount = 55 },
-                new TrendsReportDto { Month = "May", CreatedCount = 67, ResolvedCount = 64 },
-                new TrendsReportDto { Month = "Jun", CreatedCount = 74, ResolvedCount = 70 }
-            };
-
-            return Ok(new ApiResponseDto<IEnumerable<TrendsReportDto>> { Success = true, Data = trends });
-        }
-
         [HttpGet("departments")]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<DepartmentReportDto>>>> GetDepartmentsReport()
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<DepartmentReportDto>>>> GetDepartmentReport()
         {
-            var depts = await _context.Departments.ToListAsync();
-            var report = new List<DepartmentReportDto>();
-
-            foreach (var d in depts)
-            {
-                var total = await _context.ServiceRequests.CountAsync(r => r.DepartmentId == d.DepartmentId);
-                var resolved = await _context.ServiceRequests.CountAsync(r => r.DepartmentId == d.DepartmentId && r.Status != null && r.Status.StatusName == "Resolved");
-                var rate = total > 0 ? (resolved / (double)total) * 100 : 100.0;
-
-                report.Add(new DepartmentReportDto
+            var departments = await _context.Departments
+                .Where(d => !d.IsDeleted)
+                .Select(d => new DepartmentReportDto
                 {
                     DepartmentId = d.DepartmentId,
                     DepartmentName = d.DepartmentName,
-                    TotalRequests = total,
-                    ResolvedRequests = resolved,
-                    ResolutionRatePercentage = Math.Round(rate, 1)
-                });
+                    TotalRequests = d.ServiceRequests.Count(r => !r.IsDeleted),
+                    ResolvedRequests = d.ServiceRequests.Count(r => !r.IsDeleted && r.Status != null && r.Status.StatusName == "Resolved")
+                })
+                .ToListAsync();
+
+            foreach (var department in departments)
+            {
+                department.ResolutionRatePercentage = department.TotalRequests == 0
+                    ? 0
+                    : department.ResolvedRequests * 100.0 / department.TotalRequests;
             }
 
-            return Ok(new ApiResponseDto<IEnumerable<DepartmentReportDto>> { Success = true, Data = report });
+            return Ok(new ApiResponseDto<IEnumerable<DepartmentReportDto>>
+            {
+                Success = true,
+                Message = "Department report fetched successfully.",
+                Data = departments
+            });
         }
 
         [HttpGet("sla")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<SlaReportDto>>>> GetSlaReport()
         {
-            var report = new List<SlaReportDto>
-            {
-                new SlaReportDto { Priority = "Critical", TargetResolutionHours = 4, TotalTickets = 12, CompliantTickets = 11, CompliancePercentage = 91.6 },
-                new SlaReportDto { Priority = "High", TargetResolutionHours = 24, TotalTickets = 38, CompliantTickets = 36, CompliancePercentage = 94.7 },
-                new SlaReportDto { Priority = "Medium", TargetResolutionHours = 48, TotalTickets = 85, CompliantTickets = 82, CompliancePercentage = 96.4 },
-                new SlaReportDto { Priority = "Low", TargetResolutionHours = 72, TotalTickets = 42, CompliantTickets = 41, CompliancePercentage = 97.6 }
-            };
+            var requests = await _context.ServiceRequests
+                .Where(r => !r.IsDeleted)
+                .Select(r => new
+                {
+                    r.Priority,
+                    r.CreatedAt,
+                    r.UpdatedAt,
+                    StatusName = r.Status != null ? r.Status.StatusName : null
+                })
+                .ToListAsync();
 
-            return Ok(new ApiResponseDto<IEnumerable<SlaReportDto>> { Success = true, Data = report });
-        }
+            var report = requests
+                .GroupBy(r => r.Priority)
+                .Select(group =>
+                {
+                    var targetHours = group.Key switch
+                    {
+                        Priority.Critical => 4,
+                        Priority.High => 8,
+                        Priority.Medium => 24,
+                        Priority.Low => 48,
+                        _ => 24
+                    };
 
-        [HttpGet("export")]
-        public async Task<ActionResult<ApiResponseDto<string>>> ExportReport([FromQuery] string format = "csv")
-        {
-            return Ok(new ApiResponseDto<string>
+                    var resolvedRequests = group.Where(r => r.StatusName == "Resolved").ToList();
+                    var compliantTickets = resolvedRequests.Count(r => (r.UpdatedAt - r.CreatedAt).TotalHours <= targetHours);
+                    var compliancePercentage = resolvedRequests.Count == 0
+                        ? 0
+                        : compliantTickets * 100.0 / resolvedRequests.Count;
+
+                    return new SlaReportDto
+                    {
+                        Priority = group.Key.ToString(),
+                        TargetResolutionHours = targetHours,
+                        TotalTickets = resolvedRequests.Count,
+                        CompliantTickets = compliantTickets,
+                        CompliancePercentage = compliancePercentage
+                    };
+                })
+                .OrderByDescending(r => r.CompliancePercentage)
+                .ToList();
+
+            return Ok(new ApiResponseDto<IEnumerable<SlaReportDto>>
             {
                 Success = true,
-                Message = $"Report data compiled in {format.ToUpper()} format.",
-                Data = $"https://localhost:7124/downloads/reports/export_{DateTime.UtcNow:yyyyMMddHHmmss}.{format}"
+                Message = "SLA report fetched successfully.",
+                Data = report
+            });
+        }
+
+        [HttpGet("trends")]
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<TrendsReportDto>>>> GetTrends()
+        {
+            var requests = await _context.ServiceRequests
+                .Where(r => !r.IsDeleted)
+                .Select(r => new
+                {
+                    r.CreatedAt,
+                    r.UpdatedAt,
+                    StatusName = r.Status != null ? r.Status.StatusName : null
+                })
+                .ToListAsync();
+
+            var trends = requests
+                .GroupBy(r => new
+                {
+                    r.CreatedAt.Year,
+                    r.CreatedAt.Month
+                })
+                .OrderBy(group => group.Key.Year)
+                .ThenBy(group => group.Key.Month)
+                .Select(group => new TrendsReportDto
+                {
+                    Month = $"{group.Key.Year}-{group.Key.Month:00}",
+                    CreatedCount = group.Count(),
+                    ResolvedCount = group.Count(r => r.StatusName == "Resolved")
+                })
+                .ToList();
+
+            return Ok(new ApiResponseDto<IEnumerable<TrendsReportDto>>
+            {
+                Success = true,
+                Message = "Request trends fetched successfully.",
+                Data = trends
             });
         }
     }
