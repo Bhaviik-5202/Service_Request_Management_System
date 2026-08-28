@@ -1,19 +1,13 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace ServiceRequestManagementSystem.API.DTOs.Masters
 {
     public class StatusDto
     {
         public int StatusId { get; set; }
 
-        [Required]
-        [StringLength(50)]
         public string StatusName { get; set; } = string.Empty;
 
-        [StringLength(100)]
         public string? ColorCode { get; set; }
 
-        [StringLength(250)]
         public string? Description { get; set; }
 
         public bool IsActive { get; set; } = true;
@@ -23,27 +17,29 @@ namespace ServiceRequestManagementSystem.API.DTOs.Masters
     {
         public int DepartmentId { get; set; }
 
-        [Required]
-        [StringLength(50)]
         public string DepartmentName { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(10)]
         public string DepartmentCode { get; set; } = string.Empty;
 
-        [StringLength(250)]
         public string? Description { get; set; }
+
         public bool IsActive { get; set; } = true;
     }
 
     public class DepartmentPersonnelDto
     {
         public int DepartmentPersonnelId { get; set; }
+
         public int UserId { get; set; }
+
         public string UserName { get; set; } = string.Empty;
+
         public int DepartmentId { get; set; }
+
         public string DepartmentName { get; set; } = string.Empty;
+
         public bool IsHOD { get; set; }
+
         public bool IsActive { get; set; } = true;
     }
 
@@ -51,16 +47,12 @@ namespace ServiceRequestManagementSystem.API.DTOs.Masters
     {
         public int ServiceTypeId { get; set; }
 
-        [Required]
-        [StringLength(50)]
         public string ServiceTypeName { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(10)]
         public string ServiceTypeCode { get; set; } = string.Empty;
 
-        [StringLength(250)]
         public string? Description { get; set; }
+
         public bool IsActive { get; set; } = true;
     }
 
@@ -68,17 +60,16 @@ namespace ServiceRequestManagementSystem.API.DTOs.Masters
     {
         public int RequestTypeId { get; set; }
 
-        [Required]
         public int ServiceTypeId { get; set; }
+
         public string? ServiceTypeName { get; set; }
 
-        [Required]
-        [StringLength(100)]
         public string RequestTypeName { get; set; } = string.Empty;
 
-        [StringLength(250)]
         public string? Description { get; set; }
+
         public bool RequiresApproval { get; set; }
+
         public bool IsActive { get; set; } = true;
     }
 
@@ -86,13 +77,14 @@ namespace ServiceRequestManagementSystem.API.DTOs.Masters
     {
         public int MappingId { get; set; }
 
-        [Required]
         public int RequestTypeId { get; set; }
+
         public string RequestTypeName { get; set; } = string.Empty;
 
-        [Required]
         public int DepartmentPersonnelId { get; set; }
+
         public string TechnicianName { get; set; } = string.Empty;
+
         public bool IsActive { get; set; } = true;
     }
 }
