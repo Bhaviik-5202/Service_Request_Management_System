@@ -19,10 +19,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/v1/assets
-        /// Get paginated asset inventory list with optional filters.
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<AssetResponseDto>>>> GetAssets(
             [FromQuery] string? category,
@@ -98,10 +94,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             });
         }
 
-        /// <summary>
-        /// GET /api/v1/assets/{id}
-        /// Get detailed asset specifications by ID.
-        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> GetAssetById(int id)
         {
@@ -133,10 +125,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<AssetResponseDto> { Success = true, Data = response });
         }
 
-        /// <summary>
-        /// POST /api/v1/assets
-        /// Create a new asset item in inventory.
-        /// </summary>
         [HttpPost]
         public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> CreateAsset([FromBody] CreateAssetDto dto)
         {
@@ -180,10 +168,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return CreatedAtAction(nameof(GetAssetById), new { id = asset.AssetId }, new ApiResponseDto<AssetResponseDto> { Success = true, Message = "Asset created successfully.", Data = response });
         }
 
-        /// <summary>
-        /// PUT /api/v1/assets/{id}
-        /// Update asset inventory details.
-        /// </summary>
         [HttpPut("{id}")]
         public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> UpdateAsset(int id, [FromBody] UpdateAssetDto dto)
         {
@@ -217,10 +201,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<AssetResponseDto> { Success = true, Message = "Asset updated successfully.", Data = response });
         }
 
-        /// <summary>
-        /// DELETE /api/v1/assets/{id}
-        /// Soft delete asset from inventory.
-        /// </summary>
         [HttpDelete("{id}")]
         public async Task<ActionResult<ApiResponseDto<bool>>> DeleteAsset(int id)
         {
@@ -235,10 +215,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool> { Success = true, Message = "Asset soft deleted successfully.", Data = true });
         }
 
-        /// <summary>
-        /// PUT /api/v1/assets/{id}/assign
-        /// Assign or unassign asset to employee user.
-        /// </summary>
         [HttpPut("{id}/assign")]
         public async Task<ActionResult<ApiResponseDto<bool>>> AssignAsset(int id, [FromBody] AssignAssetDto dto)
         {

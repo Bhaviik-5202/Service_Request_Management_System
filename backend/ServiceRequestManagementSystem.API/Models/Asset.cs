@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Enums;
 
 namespace ServiceRequestManagementSystem.API.Models
@@ -24,7 +25,7 @@ namespace ServiceRequestManagementSystem.API.Models
         public string Category { get; set; } = string.Empty;
 
         [Required]
-        [MaxLength(100)]
+        [MaxLength(15)]
         public string SerialNumber { get; set; } = string.Empty;
 
         public int? AssignedToUserId { get; set; }
@@ -41,8 +42,8 @@ namespace ServiceRequestManagementSystem.API.Models
         public DateTime WarrantyUntil { get; set; }
 
         [Required]
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal BookValue { get; set; } = 0.00m;
+        [Range(0, 999999999)]
+        public decimal BookValue { get; set; }
 
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -55,7 +56,6 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime? DeletedAt { get; set; }
 
-        // Navigation Properties
         [ForeignKey(nameof(AssignedToUserId))]
         public virtual User? AssignedTo { get; set; }
 

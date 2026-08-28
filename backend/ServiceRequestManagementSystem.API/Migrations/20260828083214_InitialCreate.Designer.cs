@@ -12,7 +12,7 @@ using ServiceRequestManagementSystem.API.Data;
 namespace ServiceRequestManagementSystem.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260812193620_InitialCreate")]
+    [Migration("20260828083214_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -110,8 +110,8 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.Property<string>("SerialNumber")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -205,8 +205,8 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.Property<string>("DepartmentName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(250)
@@ -265,7 +265,8 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasIndex("DepartmentId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "DepartmentId")
+                        .IsUnique();
 
                     b.ToTable("DepartmentPersonnel");
                 });
@@ -348,10 +349,8 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasKey("RequestTypeId");
 
-                    b.HasIndex("RequestTypeName")
+                    b.HasIndex("ServiceTypeId", "RequestTypeName")
                         .IsUnique();
-
-                    b.HasIndex("ServiceTypeId");
 
                     b.ToTable("RequestTypes");
                 });
@@ -389,7 +388,8 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasIndex("DepartmentPersonnelId");
 
-                    b.HasIndex("RequestTypeId");
+                    b.HasIndex("RequestTypeId", "DepartmentPersonnelId")
+                        .IsUnique();
 
                     b.ToTable("RequestTypeTechnicianMappings");
                 });
@@ -578,6 +578,9 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasKey("StatusId");
 
+                    b.HasIndex("StatusName")
+                        .IsUnique();
+
                     b.ToTable("ServiceRequestStatuses");
                 });
 
@@ -648,8 +651,8 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.Property<string>("ServiceTypeName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -681,18 +684,18 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("EmployeeId")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -700,17 +703,9 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.Property<DateTime>("JoinedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("LastLoginAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
                     b.Property<string>("Phone")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("Role")
                         .IsRequired()

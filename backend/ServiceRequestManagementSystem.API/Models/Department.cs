@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace ServiceRequestManagementSystem.API.Models
 {
@@ -11,11 +12,11 @@ namespace ServiceRequestManagementSystem.API.Models
         public int DepartmentId { get; set; }
 
         [Required]
-        [MaxLength(100)]
+        [MaxLength(50)]
         public string DepartmentName { get; set; } = string.Empty;
 
         [Required]
-        [MaxLength(10)]
+        [MaxLength(10)] 
         public string DepartmentCode { get; set; } = string.Empty;
 
         [MaxLength(250)]
@@ -35,7 +36,6 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime? DeletedAt { get; set; }
 
-        // Navigation Properties
         public virtual ICollection<User> Users { get; set; } = new List<User>();
 
         public virtual ICollection<DepartmentPersonnel> DepartmentPersonnels { get; set; } = new List<DepartmentPersonnel>();

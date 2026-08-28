@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ServiceRequestManagementSystem.API.Models
@@ -37,7 +38,6 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime? DeletedAt { get; set; }
 
-        // Navigation Properties
         [ForeignKey(nameof(ServiceTypeId))]
         public virtual ServiceType? ServiceType { get; set; }
 

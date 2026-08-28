@@ -31,7 +31,8 @@ namespace ServiceRequestManagementSystem.API.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Enum String Conversions
+            // Enum -> String Conversion
+
             modelBuilder.Entity<User>()
                 .Property(u => u.Role)
                 .HasConversion<string>();
@@ -49,19 +50,23 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasConversion<string>();
 
             modelBuilder.Entity<Approval>()
-                .Property(ap => ap.Status)
+                .Property(a => a.Status)
                 .HasConversion<string>();
 
             modelBuilder.Entity<Notification>()
                 .Property(n => n.NotificationType)
                 .HasConversion<string>();
 
+
             // Decimal Precision
+
             modelBuilder.Entity<Asset>()
                 .Property(a => a.BookValue)
                 .HasPrecision(18, 2);
 
-            // One-to-One Relationship: User <-> UserSettings
+
+            // User <-> UserSettings : One-to-One
+
             modelBuilder.Entity<UserSettings>()
                 .HasKey(s => s.UserId);
 
@@ -71,12 +76,15 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey<UserSettings>(s => s.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Dual Foreign Key Relationships: ServiceRequest <-> User (Requester and Assignee)
+            // ServiceRequest <-> User : Requester
+
             modelBuilder.Entity<ServiceRequest>()
                 .HasOne(sr => sr.Requester)
                 .WithMany(u => u.RequestedRequests)
                 .HasForeignKey(sr => sr.RequesterUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ServiceRequest <-> User : Assignee
 
             modelBuilder.Entity<ServiceRequest>()
                 .HasOne(sr => sr.Assignee)
@@ -84,12 +92,15 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(sr => sr.AssigneeUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // One-to-One / One-to-Many Relationships: ServiceRequest <-> Approval
+            // ServiceRequest <-> Approval : One-to-One
+
             modelBuilder.Entity<Approval>()
                 .HasOne(a => a.ServiceRequest)
                 .WithOne(sr => sr.Approval)
                 .HasForeignKey<Approval>(a => a.RequestId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Approval <-> User : DecidedBy
 
             modelBuilder.Entity<Approval>()
                 .HasOne(a => a.DecidedBy)
@@ -97,12 +108,15 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(a => a.DecidedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Cascade Deletions for Child Sub-records
+            // ServiceRequest <-> Replies
+
             modelBuilder.Entity<ServiceRequestReply>()
                 .HasOne(r => r.ServiceRequest)
                 .WithMany(sr => sr.Replies)
                 .HasForeignKey(r => r.RequestId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // ServiceRequest <-> Timeline
 
             modelBuilder.Entity<ServiceRequestTimeline>()
                 .HasOne(t => t.ServiceRequest)
@@ -110,33 +124,39 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(t => t.RequestId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Attachments -> ServiceRequest: restrict delete to avoid multiple cascade paths
+            // ServiceRequest <-> Attachments
+
             modelBuilder.Entity<ServiceRequestAttachment>()
                 .HasOne(a => a.ServiceRequest)
                 .WithMany(sr => sr.Attachments)
                 .HasForeignKey(a => a.RequestId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Reply <-> Attachments
+
             modelBuilder.Entity<ServiceRequestAttachment>()
                 .HasOne(a => a.Reply)
                 .WithMany(r => r.Attachments)
                 .HasForeignKey(a => a.ReplyId)
-                // Avoid multiple cascade paths in SQL Server by restricting delete here.
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // UploadedBy (User) -> ServiceRequestAttachment: restrict delete to avoid multiple cascade paths
+            // User <-> Attachments : UploadedBy
+
             modelBuilder.Entity<ServiceRequestAttachment>()
                 .HasOne(a => a.UploadedBy)
                 .WithMany(u => u.UploadedAttachments)
                 .HasForeignKey(a => a.UploadedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Restrict Deletions on Primary References
+            // User <-> Department
+
             modelBuilder.Entity<User>()
                 .HasOne(u => u.Department)
                 .WithMany(d => d.Users)
                 .HasForeignKey(u => u.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // DepartmentPersonnel <-> User
 
             modelBuilder.Entity<DepartmentPersonnel>()
                 .HasOne(dp => dp.User)
@@ -144,11 +164,15 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(dp => dp.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // DepartmentPersonnel <-> Department
+
             modelBuilder.Entity<DepartmentPersonnel>()
                 .HasOne(dp => dp.Department)
                 .WithMany(d => d.DepartmentPersonnels)
                 .HasForeignKey(dp => dp.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // RequestType <-> ServiceType
 
             modelBuilder.Entity<RequestType>()
                 .HasOne(rt => rt.ServiceType)
@@ -156,11 +180,15 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(rt => rt.ServiceTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Technician Mapping <-> RequestType
+
             modelBuilder.Entity<RequestTypeTechnicianMapping>()
                 .HasOne(m => m.RequestType)
                 .WithMany(rt => rt.RequestTypeTechnicianMappings)
                 .HasForeignKey(m => m.RequestTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Technician Mapping <-> DepartmentPersonnel
 
             modelBuilder.Entity<RequestTypeTechnicianMapping>()
                 .HasOne(m => m.DepartmentPersonnel)
@@ -168,11 +196,15 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(m => m.DepartmentPersonnelId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // ServiceRequest <-> ServiceType
+
             modelBuilder.Entity<ServiceRequest>()
                 .HasOne(sr => sr.ServiceType)
                 .WithMany(st => st.ServiceRequests)
                 .HasForeignKey(sr => sr.ServiceTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ServiceRequest <-> RequestType
 
             modelBuilder.Entity<ServiceRequest>()
                 .HasOne(sr => sr.RequestType)
@@ -180,11 +212,15 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(sr => sr.RequestTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // ServiceRequest <-> Department
+
             modelBuilder.Entity<ServiceRequest>()
                 .HasOne(sr => sr.Department)
                 .WithMany(d => d.ServiceRequests)
                 .HasForeignKey(sr => sr.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ServiceRequest <-> Status
 
             modelBuilder.Entity<ServiceRequest>()
                 .HasOne(sr => sr.Status)
@@ -192,11 +228,15 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(sr => sr.StatusId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Asset <-> User
+
             modelBuilder.Entity<Asset>()
                 .HasOne(a => a.AssignedTo)
                 .WithMany(u => u.AssignedAssets)
                 .HasForeignKey(a => a.AssignedToUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // Asset <-> Department
 
             modelBuilder.Entity<Asset>()
                 .HasOne(a => a.Department)
@@ -204,11 +244,15 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(a => a.DepartmentId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // User <-> Notifications
+
             modelBuilder.Entity<Notification>()
                 .HasOne(n => n.User)
                 .WithMany(u => u.Notifications)
                 .HasForeignKey(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // User <-> AuditLogs
 
             modelBuilder.Entity<AuditLog>()
                 .HasOne(al => al.Actor)
@@ -216,7 +260,9 @@ namespace ServiceRequestManagementSystem.API.Data
                 .HasForeignKey(al => al.ActorUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+
             // Unique Indexes
+
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.EmployeeId)
                 .IsUnique();
@@ -234,7 +280,19 @@ namespace ServiceRequestManagementSystem.API.Data
                 .IsUnique();
 
             modelBuilder.Entity<RequestType>()
-                .HasIndex(rt => rt.RequestTypeName)
+                .HasIndex(rt => new { rt.ServiceTypeId, rt.RequestTypeName })
+                .IsUnique();
+
+            modelBuilder.Entity<DepartmentPersonnel>()
+                .HasIndex(dp => new { dp.UserId, dp.DepartmentId })
+                .IsUnique();
+
+            modelBuilder.Entity<RequestTypeTechnicianMapping>()
+                .HasIndex(m => new { m.RequestTypeId, m.DepartmentPersonnelId })
+                .IsUnique();
+
+            modelBuilder.Entity<ServiceRequestStatus>()
+                .HasIndex(s => s.StatusName)
                 .IsUnique();
 
             modelBuilder.Entity<ServiceRequest>()
@@ -250,14 +308,56 @@ namespace ServiceRequestManagementSystem.API.Data
                 .IsUnique();
 
             // Global Query Filters for Soft Delete
-            modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
-            modelBuilder.Entity<Department>().HasQueryFilter(d => !d.IsDeleted);
-            modelBuilder.Entity<DepartmentPersonnel>().HasQueryFilter(dp => !dp.IsDeleted);
-            modelBuilder.Entity<ServiceType>().HasQueryFilter(st => !st.IsDeleted);
-            modelBuilder.Entity<RequestType>().HasQueryFilter(rt => !rt.IsDeleted);
-            modelBuilder.Entity<RequestTypeTechnicianMapping>().HasQueryFilter(m => !m.IsDeleted);
-            modelBuilder.Entity<ServiceRequest>().HasQueryFilter(sr => !sr.IsDeleted);
-            modelBuilder.Entity<Asset>().HasQueryFilter(a => !a.IsDeleted);
+
+            modelBuilder.Entity<User>()
+                .HasQueryFilter(u => !u.IsDeleted);
+
+            modelBuilder.Entity<Department>()
+                .HasQueryFilter(d => !d.IsDeleted);
+
+            modelBuilder.Entity<DepartmentPersonnel>()
+                .HasQueryFilter(dp => !dp.IsDeleted);
+
+            modelBuilder.Entity<ServiceType>()
+                .HasQueryFilter(st => !st.IsDeleted);
+
+            modelBuilder.Entity<RequestType>()
+                .HasQueryFilter(rt => !rt.IsDeleted);
+
+            modelBuilder.Entity<RequestTypeTechnicianMapping>()
+                .HasQueryFilter(m => !m.IsDeleted);
+
+            modelBuilder.Entity<ServiceRequest>()
+                .HasQueryFilter(sr => !sr.IsDeleted);
+
+            modelBuilder.Entity<Asset>()
+                .HasQueryFilter(a => !a.IsDeleted);
         }
     }
 }
+
+/*
+OnDelete() has 4 Types — Must Remember
+
+
+Behavior	        Meaning
+Cascade	            Parent delete → child automatically delete
+Restrict	        Parent delete prevent/restrict if related records exist
+SetNull	            Parent delete → FK becomes NULL
+Default/NoAction	Database/provider default behavior
+
+
+Cascade
+→ UserSettings
+→ Approval
+→ Replies
+→ Timeline
+→ Notifications
+
+Restrict
+→ Most important references
+
+SetNull
+→ Asset AssignedTo
+→ Asset Department
+*/

@@ -18,10 +18,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/v1/dashboard/summary
-        /// Get dashboard summary KPI counters, priority breakdown, and status metrics.
-        /// </summary>
         [HttpGet("summary")]
         public async Task<ActionResult<ApiResponseDto<DashboardSummaryDto>>> GetSummary()
         {

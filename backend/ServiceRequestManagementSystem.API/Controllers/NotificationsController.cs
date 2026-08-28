@@ -18,10 +18,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/v1/notifications
-        /// Get paginated inbox alerts for current user.
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<NotificationResponseDto>>>> GetNotifications(
             [FromQuery] NotificationType? type,
@@ -71,10 +67,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             });
         }
 
-        /// <summary>
-        /// GET /api/v1/notifications/unread-count
-        /// Get unread notification count for top navbar badge.
-        /// </summary>
         [HttpGet("unread-count")]
         public async Task<ActionResult<ApiResponseDto<int>>> GetUnreadCount()
         {
@@ -82,10 +74,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<int> { Success = true, Data = count });
         }
 
-        /// <summary>
-        /// PUT /api/v1/notifications/{id}/read
-        /// Mark single notification as read.
-        /// </summary>
         [HttpPut("{id}/read")]
         public async Task<ActionResult<ApiResponseDto<bool>>> MarkAsRead(int id)
         {
@@ -99,10 +87,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool> { Success = true, Message = "Notification marked as read.", Data = true });
         }
 
-        /// <summary>
-        /// PUT /api/v1/notifications/read-all
-        /// Mark all notifications for user as read.
-        /// </summary>
         [HttpPut("read-all")]
         public async Task<ActionResult<ApiResponseDto<bool>>> MarkAllAsRead()
         {

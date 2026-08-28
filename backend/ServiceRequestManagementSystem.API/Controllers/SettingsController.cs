@@ -18,10 +18,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/v1/settings
-        /// Get user preferences and notification settings for current user.
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult<ApiResponseDto<UserSettingsDto>>> GetSettings()
         {
@@ -58,10 +54,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<UserSettingsDto> { Success = true, Data = dto });
         }
 
-        /// <summary>
-        /// PUT /api/v1/settings
-        /// Update current user preferences and settings.
-        /// </summary>
         [HttpPut]
         public async Task<ActionResult<ApiResponseDto<UserSettingsDto>>> UpdateSettings([FromBody] UserSettingsDto dto)
         {

@@ -19,10 +19,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/v1/approvals/pending
-        /// Get pending approval requests for HOD department queue.
-        /// </summary>
         [HttpGet("pending")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<ApprovalResponseDto>>>> GetPendingApprovals()
         {
@@ -48,10 +44,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<IEnumerable<ApprovalResponseDto>> { Success = true, Data = pending });
         }
 
-        /// <summary>
-        /// GET /api/v1/approvals/history
-        /// Get historical approval decisions log.
-        /// </summary>
         [HttpGet("history")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<ApprovalResponseDto>>>> GetApprovalHistory()
         {
@@ -81,10 +73,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<IEnumerable<ApprovalResponseDto>> { Success = true, Data = history });
         }
 
-        /// <summary>
-        /// POST /api/v1/approvals/{id}/decide
-        /// Process HOD approval decision (Approved or Rejected) with mandatory remarks on rejection.
-        /// </summary>
         [HttpPost("{id}/decide")]
         public async Task<ActionResult<ApiResponseDto<bool>>> MakeDecision(int id, [FromBody] ApprovalDecisionDto dto)
         {

@@ -17,7 +17,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                 {
                     DepartmentId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    DepartmentName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    DepartmentName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     DepartmentCode = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
@@ -54,7 +54,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                 {
                     ServiceTypeId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    ServiceTypeName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    ServiceTypeName = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     ServiceTypeCode = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
@@ -74,16 +74,14 @@ namespace ServiceRequestManagementSystem.API.Migrations
                 {
                     UserId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    EmployeeId = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    FullName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                    PasswordHash = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    EmployeeId = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
+                    FullName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Role = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     DepartmentId = table.Column<int>(type: "int", nullable: true),
-                    Phone = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    Phone = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: true),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     JoinedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    LastLoginAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
@@ -136,7 +134,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     AssetTag = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     AssetName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Category = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    SerialNumber = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    SerialNumber = table.Column<string>(type: "nvarchar(15)", maxLength: 15, nullable: false),
                     AssignedToUserId = table.Column<int>(type: "int", nullable: true),
                     DepartmentId = table.Column<int>(type: "int", nullable: true),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -539,9 +537,10 @@ namespace ServiceRequestManagementSystem.API.Migrations
                 column: "DepartmentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_DepartmentPersonnel_UserId",
+                name: "IX_DepartmentPersonnel_UserId_DepartmentId",
                 table: "DepartmentPersonnel",
-                column: "UserId");
+                columns: new[] { "UserId", "DepartmentId" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Departments_DepartmentCode",
@@ -555,15 +554,10 @@ namespace ServiceRequestManagementSystem.API.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RequestTypes_RequestTypeName",
+                name: "IX_RequestTypes_ServiceTypeId_RequestTypeName",
                 table: "RequestTypes",
-                column: "RequestTypeName",
+                columns: new[] { "ServiceTypeId", "RequestTypeName" },
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_RequestTypes_ServiceTypeId",
-                table: "RequestTypes",
-                column: "ServiceTypeId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RequestTypeTechnicianMappings_DepartmentPersonnelId",
@@ -571,9 +565,10 @@ namespace ServiceRequestManagementSystem.API.Migrations
                 column: "DepartmentPersonnelId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RequestTypeTechnicianMappings_RequestTypeId",
+                name: "IX_RequestTypeTechnicianMappings_RequestTypeId_DepartmentPersonnelId",
                 table: "RequestTypeTechnicianMappings",
-                column: "RequestTypeId");
+                columns: new[] { "RequestTypeId", "DepartmentPersonnelId" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ServiceRequestAttachments_ReplyId",
@@ -640,6 +635,12 @@ namespace ServiceRequestManagementSystem.API.Migrations
                 name: "IX_ServiceRequests_StatusId",
                 table: "ServiceRequests",
                 column: "StatusId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceRequestStatuses_StatusName",
+                table: "ServiceRequestStatuses",
+                column: "StatusName",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ServiceRequestTimeline_ChangedByUserId",

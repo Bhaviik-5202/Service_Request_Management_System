@@ -35,7 +35,7 @@ namespace ServiceRequestManagementSystem.API.DTOs.Assets
         public string Category { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(100)]
+        [StringLength(15)]
         public string SerialNumber { get; set; } = string.Empty;
 
         public int? DepartmentId { get; set; }

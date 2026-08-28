@@ -18,8 +18,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        // ================= STATUSES MASTER =================
-
         [HttpGet("statuses")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<StatusDto>>>> GetStatuses()
         {
@@ -85,7 +83,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool> { Success = true, Message = "Status deactivated.", Data = true });
         }
 
-        // ================= DEPARTMENTS MASTER =================
 
         [HttpGet("departments")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<DepartmentDto>>>> GetDepartments()
@@ -153,8 +150,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             await _context.SaveChangesAsync();
             return Ok(new ApiResponseDto<bool> { Success = true, Message = "Department soft deleted.", Data = true });
         }
-
-        // ================= DEPARTMENT PERSONNEL MASTER =================
 
         [HttpGet("personnel")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<DepartmentPersonnelDto>>>> GetPersonnel()
@@ -225,8 +220,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool> { Success = true, Message = "Personnel mapping soft deleted.", Data = true });
         }
 
-        // ================= SERVICE TYPES MASTER =================
-
         [HttpGet("service-types")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceTypeDto>>>> GetServiceTypes()
         {
@@ -263,8 +256,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             dto.ServiceTypeId = st.ServiceTypeId;
             return Ok(new ApiResponseDto<ServiceTypeDto> { Success = true, Message = "Service type created successfully.", Data = dto });
         }
-
-        // ================= REQUEST TYPES MASTER =================
 
         [HttpGet("request-types")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<RequestTypeDto>>>> GetRequestTypes()
@@ -306,8 +297,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             dto.RequestTypeId = rt.RequestTypeId;
             return Ok(new ApiResponseDto<RequestTypeDto> { Success = true, Message = "Request type created successfully.", Data = dto });
         }
-
-        // ================= REQUEST TYPE MAPPINGS MASTER =================
 
         [HttpGet("mappings")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<RequestTypeTechnicianMappingDto>>>> GetMappings()

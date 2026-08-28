@@ -19,10 +19,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/v1/users
-        /// Get paginated user accounts with optional role, department, status, and search filters.
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<UserResponseDto>>>> GetUsers(
             [FromQuery] UserRole? role,
@@ -68,7 +64,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     Phone = u.Phone,
                     Status = u.Status,
                     JoinedDate = u.JoinedDate,
-                    LastLoginAt = u.LastLoginAt,
                     RequestsRaised = _context.ServiceRequests.Count(r => r.RequesterUserId == u.UserId),
                     RequestsResolved = _context.ServiceRequests.Count(r => r.AssigneeUserId == u.UserId && r.Status != null && r.Status.StatusName == "Resolved")
                 })
@@ -89,10 +84,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             });
         }
 
-        /// <summary>
-        /// GET /api/v1/users/{id}
-        /// Get detailed user profile by ID.
-        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> GetUserById(int id)
         {
@@ -115,7 +106,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Phone = user.Phone,
                 Status = user.Status,
                 JoinedDate = user.JoinedDate,
-                LastLoginAt = user.LastLoginAt,
                 RequestsRaised = await _context.ServiceRequests.CountAsync(r => r.RequesterUserId == user.UserId),
                 RequestsResolved = await _context.ServiceRequests.CountAsync(r => r.AssigneeUserId == user.UserId && r.Status != null && r.Status.StatusName == "Resolved")
             };
@@ -123,10 +113,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<UserResponseDto> { Success = true, Data = response });
         }
 
-        /// <summary>
-        /// POST /api/v1/users
-        /// Create a new user account (Admin only).
-        /// </summary>
         [HttpPost]
         public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> CreateUser([FromBody] CreateUserDto dto)
         {
@@ -142,7 +128,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 EmployeeId = dto.EmployeeId,
                 FullName = dto.FullName,
                 Email = dto.Email,
-                PasswordHash = dto.Password,
                 Role = dto.Role,
                 DepartmentId = dto.DepartmentId,
                 Phone = dto.Phone,
@@ -174,10 +159,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return CreatedAtAction(nameof(GetUserById), new { id = user.UserId }, new ApiResponseDto<UserResponseDto> { Success = true, Message = "User created successfully.", Data = response });
         }
 
-        /// <summary>
-        /// PUT /api/v1/users/{id}
-        /// Update user profile details, role, department, or status.
-        /// </summary>
         [HttpPut("{id}")]
         public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> UpdateUser(int id, [FromBody] UpdateUserDto dto)
         {
@@ -210,10 +191,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<UserResponseDto> { Success = true, Message = "User updated successfully.", Data = response });
         }
 
-        /// <summary>
-        /// DELETE /api/v1/users/{id}
-        /// Soft delete user account.
-        /// </summary>
         [HttpDelete("{id}")]
         public async Task<ActionResult<ApiResponseDto<bool>>> DeleteUser(int id)
         {
@@ -226,24 +203,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new ApiResponseDto<bool> { Success = true, Message = "User soft deleted successfully.", Data = true });
-        }
-
-        /// <summary>
-        /// PUT /api/v1/users/{id}/change-password
-        /// Change password for user.
-        /// </summary>
-        [HttpPut("{id}/change-password")]
-        public async Task<ActionResult<ApiResponseDto<bool>>> ChangePassword(int id, [FromBody] ChangePasswordDto dto)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-                return NotFound(new ApiResponseDto<bool> { Success = false, Message = "User not found." });
-
-            user.PasswordHash = dto.NewPassword;
-            user.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            return Ok(new ApiResponseDto<bool> { Success = true, Message = "Password updated successfully.", Data = true });
         }
     }
 }

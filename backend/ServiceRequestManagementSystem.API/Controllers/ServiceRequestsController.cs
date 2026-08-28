@@ -19,10 +19,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/v1/requests
-        /// Get paginated service requests with search, priority, status, and department filters.
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceRequestResponseDto>>>> GetRequests(
             [FromQuery] int? statusId,
@@ -104,10 +100,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             });
         }
 
-        /// <summary>
-        /// GET /api/v1/requests/{id}
-        /// Get detailed ticket view including replies, timeline history, and attachments.
-        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponseDto<ServiceRequestDetailResponseDto>>> GetRequestById(int id)
         {
@@ -173,10 +165,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<ServiceRequestDetailResponseDto> { Success = true, Data = detail });
         }
 
-        /// <summary>
-        /// POST /api/v1/requests
-        /// Create a new service request. Auto-generates SR-YYYY-XXXX ticket number and checks HOD approval necessity.
-        /// </summary>
         [HttpPost]
         public async Task<ActionResult<ApiResponseDto<ServiceRequestResponseDto>>> CreateRequest([FromBody] CreateServiceRequestDto dto)
         {
@@ -256,10 +244,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return CreatedAtAction(nameof(GetRequestById), new { id = sr.RequestId }, new ApiResponseDto<ServiceRequestResponseDto> { Success = true, Message = "Service request created successfully.", Data = response });
         }
 
-        /// <summary>
-        /// PUT /api/v1/requests/{id}/status
-        /// Update request status.
-        /// </summary>
         [HttpPut("{id}/status")]
         public async Task<ActionResult<ApiResponseDto<bool>>> UpdateStatus(int id, [FromBody] UpdateServiceRequestStatusDto dto)
         {
@@ -287,10 +271,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool> { Success = true, Message = "Status updated successfully.", Data = true });
         }
 
-        /// <summary>
-        /// PUT /api/v1/requests/{id}/assign
-        /// Reassign technician to ticket.
-        /// </summary>
         [HttpPut("{id}/assign")]
         public async Task<ActionResult<ApiResponseDto<bool>>> AssignTechnician(int id, [FromBody] AssignTechnicianDto dto)
         {
@@ -318,10 +298,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool> { Success = true, Message = $"Assigned to {tech.FullName}.", Data = true });
         }
 
-        /// <summary>
-        /// PUT /api/v1/requests/{id}/cancel
-        /// Cancel pending ticket (Requester action).
-        /// </summary>
         [HttpPut("{id}/cancel")]
         public async Task<ActionResult<ApiResponseDto<bool>>> CancelRequest(int id)
         {
@@ -349,10 +325,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool> { Success = true, Message = "Request cancelled successfully.", Data = true });
         }
 
-        /// <summary>
-        /// PUT /api/v1/requests/{id}/reopen
-        /// Reopen resolved or closed ticket (Requester action).
-        /// </summary>
         [HttpPut("{id}/reopen")]
         public async Task<ActionResult<ApiResponseDto<bool>>> ReopenRequest(int id)
         {
@@ -379,10 +351,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool> { Success = true, Message = "Request reopened successfully.", Data = true });
         }
 
-        /// <summary>
-        /// GET /api/v1/requests/{id}/replies
-        /// Get discussion comments for ticket.
-        /// </summary>
         [HttpGet("{id}/replies")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceRequestReplyResponseDto>>>> GetReplies(int id)
         {
@@ -405,10 +373,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<IEnumerable<ServiceRequestReplyResponseDto>> { Success = true, Data = replies });
         }
 
-        /// <summary>
-        /// POST /api/v1/requests/{id}/replies
-        /// Post comment message to ticket.
-        /// </summary>
         [HttpPost("{id}/replies")]
         public async Task<ActionResult<ApiResponseDto<ServiceRequestReplyResponseDto>>> PostReply(int id, [FromBody] CreateReplyDto dto)
         {
@@ -449,10 +413,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<ServiceRequestReplyResponseDto> { Success = true, Message = "Reply posted successfully.", Data = response });
         }
 
-        /// <summary>
-        /// GET /api/v1/requests/{id}/timeline
-        /// Get audit timeline for ticket.
-        /// </summary>
         [HttpGet("{id}/timeline")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceRequestTimelineResponseDto>>>> GetTimeline(int id)
         {
@@ -473,10 +433,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<IEnumerable<ServiceRequestTimelineResponseDto>> { Success = true, Data = timeline });
         }
 
-        /// <summary>
-        /// POST /api/v1/requests/attachments/upload
-        /// Upload file attachment metadata for ticket or reply.
-        /// </summary>
         [HttpPost("attachments/upload")]
         public async Task<ActionResult<ApiResponseDto<ServiceRequestAttachmentResponseDto>>> UploadAttachment(
             [FromForm] IFormFile file,

@@ -15,7 +15,6 @@ namespace ServiceRequestManagementSystem.API.DTOs.Users
         public string? Phone { get; set; }
         public UserStatus Status { get; set; }
         public DateTime JoinedDate { get; set; }
-        public DateTime? LastLoginAt { get; set; }
         public int RequestsRaised { get; set; }
         public int RequestsResolved { get; set; }
     }
@@ -23,25 +22,24 @@ namespace ServiceRequestManagementSystem.API.DTOs.Users
     public class CreateUserDto
     {
         [Required]
+        [StringLength(20)]
         public string EmployeeId { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(100, MinimumLength = 2)]
+        [StringLength(50, MinimumLength = 2)]
         public string FullName { get; set; } = string.Empty;
 
         [Required]
         [EmailAddress]
+        [StringLength(256)]
         public string Email { get; set; } = string.Empty;
-
-        [Required]
-        [MinLength(6)]
-        public string Password { get; set; } = string.Empty;
 
         [Required]
         public UserRole Role { get; set; } = UserRole.Requestor;
 
         public int? DepartmentId { get; set; }
 
+        [StringLength(20)]
         public string? Phone { get; set; }
     }
 
@@ -59,15 +57,5 @@ namespace ServiceRequestManagementSystem.API.DTOs.Users
         public string? Phone { get; set; }
 
         public UserStatus Status { get; set; }
-    }
-
-    public class ChangePasswordDto
-    {
-        [Required]
-        public string CurrentPassword { get; set; } = string.Empty;
-
-        [Required]
-        [MinLength(6)]
-        public string NewPassword { get; set; } = string.Empty;
     }
 }

@@ -1,6 +1,8 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using ServiceRequestManagementSystem.API.Data;
+using ServiceRequestManagementSystem.API.Validator;
 
 namespace ServiceRequestManagementSystem.API
 {
@@ -10,20 +12,22 @@ namespace ServiceRequestManagementSystem.API
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-
+            // Controllers
             builder.Services.AddControllers();
 
+            // Entity Framework Core + SQL Server
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(
                     builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+            // FluentValidation
+            builder.Services.AddValidatorsFromAssemblyContaining<CreateUserDtoValidator>();
+
             builder.Services.AddOpenApi();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
+            // Scalar
             if (app.Environment.IsDevelopment())
             {
                 app.MapOpenApi();
@@ -31,9 +35,6 @@ namespace ServiceRequestManagementSystem.API
             }
 
             app.UseHttpsRedirection();
-
-            app.UseAuthorization();
-
 
             app.MapControllers();
 

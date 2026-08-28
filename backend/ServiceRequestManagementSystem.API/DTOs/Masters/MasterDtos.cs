@@ -10,8 +10,12 @@ namespace ServiceRequestManagementSystem.API.DTOs.Masters
         [StringLength(50)]
         public string StatusName { get; set; } = string.Empty;
 
+        [StringLength(100)]
         public string? ColorCode { get; set; }
+
+        [StringLength(250)]
         public string? Description { get; set; }
+
         public bool IsActive { get; set; } = true;
     }
 
@@ -20,13 +24,14 @@ namespace ServiceRequestManagementSystem.API.DTOs.Masters
         public int DepartmentId { get; set; }
 
         [Required]
-        [StringLength(100)]
+        [StringLength(50)]
         public string DepartmentName { get; set; } = string.Empty;
 
         [Required]
         [StringLength(10)]
         public string DepartmentCode { get; set; } = string.Empty;
 
+        [StringLength(250)]
         public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
     }
@@ -54,6 +59,7 @@ namespace ServiceRequestManagementSystem.API.DTOs.Masters
         [StringLength(10)]
         public string ServiceTypeCode { get; set; } = string.Empty;
 
+        [StringLength(250)]
         public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
     }
@@ -70,6 +76,7 @@ namespace ServiceRequestManagementSystem.API.DTOs.Masters
         [StringLength(100)]
         public string RequestTypeName { get; set; } = string.Empty;
 
+        [StringLength(250)]
         public string? Description { get; set; }
         public bool RequiresApproval { get; set; }
         public bool IsActive { get; set; } = true;

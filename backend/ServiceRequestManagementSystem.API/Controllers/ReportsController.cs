@@ -17,10 +17,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// GET /api/v1/reports/trends
-        /// Get monthly ticket creation vs resolution trends.
-        /// </summary>
         [HttpGet("trends")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<TrendsReportDto>>>> GetTrendsReport()
         {
@@ -37,10 +33,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<IEnumerable<TrendsReportDto>> { Success = true, Data = trends });
         }
 
-        /// <summary>
-        /// GET /api/v1/reports/departments
-        /// Get request breakdown by handling department.
-        /// </summary>
         [HttpGet("departments")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<DepartmentReportDto>>>> GetDepartmentsReport()
         {
@@ -66,10 +58,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<IEnumerable<DepartmentReportDto>> { Success = true, Data = report });
         }
 
-        /// <summary>
-        /// GET /api/v1/reports/sla
-        /// Get SLA compliance metrics grouped by priority.
-        /// </summary>
         [HttpGet("sla")]
         public async Task<ActionResult<ApiResponseDto<IEnumerable<SlaReportDto>>>> GetSlaReport()
         {
@@ -84,10 +72,6 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<IEnumerable<SlaReportDto>> { Success = true, Data = report });
         }
 
-        /// <summary>
-        /// GET /api/v1/reports/export
-        /// Download aggregated report export payload.
-        /// </summary>
         [HttpGet("export")]
         public async Task<ActionResult<ApiResponseDto<string>>> ExportReport([FromQuery] string format = "csv")
         {

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Enums;
 
 namespace ServiceRequestManagementSystem.API.Models
@@ -12,28 +13,24 @@ namespace ServiceRequestManagementSystem.API.Models
         public int UserId { get; set; }
 
         [Required]
-        [MaxLength(20)]
+        [MaxLength(10)]
         public string EmployeeId { get; set; } = string.Empty;
 
         [Required]
-        [MaxLength(100)]
+        [MaxLength(50)]
         public string FullName { get; set; } = string.Empty;
 
         [Required]
-        [MaxLength(256)]
+        [MaxLength(50)]
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
-
-        [Required]
-        [MaxLength(256)]
-        public string PasswordHash { get; set; } = string.Empty;
 
         [Required]
         public UserRole Role { get; set; } = UserRole.Requestor;
 
         public int? DepartmentId { get; set; }
 
-        [MaxLength(20)]
+        [MaxLength(10)]
         public string? Phone { get; set; }
 
         [Required]
@@ -41,8 +38,6 @@ namespace ServiceRequestManagementSystem.API.Models
 
         [Required]
         public DateTime JoinedDate { get; set; } = DateTime.UtcNow;
-
-        public DateTime? LastLoginAt { get; set; }
 
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -55,7 +50,6 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime? DeletedAt { get; set; }
 
-        // Navigation Properties
         [ForeignKey(nameof(DepartmentId))]
         public virtual Department? Department { get; set; }
 

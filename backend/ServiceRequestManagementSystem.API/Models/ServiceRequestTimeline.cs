@@ -27,7 +27,6 @@ namespace ServiceRequestManagementSystem.API.Models
         [MaxLength(500)]
         public string Note { get; set; } = string.Empty;
 
-        // Navigation Properties
         [ForeignKey(nameof(RequestId))]
         public virtual ServiceRequest? ServiceRequest { get; set; }
 

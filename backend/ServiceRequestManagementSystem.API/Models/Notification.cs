@@ -26,12 +26,11 @@ namespace ServiceRequestManagementSystem.API.Models
         public bool IsRead { get; set; } = false;
 
         [Required]
-        public NotificationType NotificationType { get; set; } = NotificationType.system;
+        public NotificationType NotificationType { get; set; } = NotificationType.System;
 
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation Property
         [ForeignKey(nameof(UserId))]
         public virtual User? User { get; set; }
     }

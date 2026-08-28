@@ -58,19 +58,18 @@ GO
 
 -- ============================================================
 -- 2. Users
--- Seed passwords use standard BCrypt hash for "123456"
 -- ============================================================
 SET IDENTITY_INSERT dbo.Users ON;
-INSERT INTO dbo.Users (UserId, EmployeeId, FullName, Email, PasswordHash, Role, DepartmentId, Phone, Status, JoinedDate, CreatedAt, UpdatedAt, IsDeleted)
+INSERT INTO dbo.Users (UserId, EmployeeId, FullName, Email, Role, DepartmentId, Phone, Status, JoinedDate, CreatedAt, UpdatedAt, IsDeleted)
 VALUES 
-    (1, 'EMP-0001', 'System Admin', 'admin@gmail.com', '$2a$11$qRz41O7c.Xw1s0WnZ6G4y.v2Vd8KzP5X9W7Y2Z1A0B3C4D5E6F7G8', 'Admin', 1, '+91 9876543210', 'Active', '2024-01-01', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
-    (2, 'EMP-0002', 'Divya Nair', 'hod@gmail.com', '$2a$11$qRz41O7c.Xw1s0WnZ6G4y.v2Vd8KzP5X9W7Y2Z1A0B3C4D5E6F7G8', 'HOD', 1, '+91 9876543211', 'Active', '2024-01-15', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
-    (3, 'EMP-0003', 'Ronak Verma', 'tech@gmail.com', '$2a$11$qRz41O7c.Xw1s0WnZ6G4y.v2Vd8KzP5X9W7Y2Z1A0B3C4D5E6F7G8', 'Technician', 1, '+91 9876543212', 'Active', '2024-02-01', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
-    (4, 'EMP-0004', 'Anita Desai', 'anita.desai@company.com', '$2a$11$qRz41O7c.Xw1s0WnZ6G4y.v2Vd8KzP5X9W7Y2Z1A0B3C4D5E6F7G8', 'Technician', 1, '+91 9876543213', 'Active', '2024-02-15', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
-    (5, 'EMP-0005', 'Suresh Kumar', 'suresh.kumar@company.com', '$2a$11$qRz41O7c.Xw1s0WnZ6G4y.v2Vd8KzP5X9W7Y2Z1A0B3C4D5E6F7G8', 'Technician', 2, '+91 9876543214', 'Active', '2024-03-01', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
-    (6, 'EMP-0006', 'Meena Joshi', 'meena.joshi@company.com', '$2a$11$qRz41O7c.Xw1s0WnZ6G4y.v2Vd8KzP5X9W7Y2Z1A0B3C4D5E6F7G8', 'HOD', 2, '+91 9876543215', 'Active', '2024-03-15', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
-    (7, 'EMP-0007', 'Rahul Sharma', 'requestor@gmail.com', '$2a$11$qRz41O7c.Xw1s0WnZ6G4y.v2Vd8KzP5X9W7Y2Z1A0B3C4D5E6F7G8', 'Requestor', 4, '+91 9876543216', 'Active', '2024-04-01', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
-    (8, 'EMP-0008', 'Neha Gupta', 'neha.gupta@company.com', '$2a$11$qRz41O7c.Xw1s0WnZ6G4y.v2Vd8KzP5X9W7Y2Z1A0B3C4D5E6F7G8', 'Requestor', 5, '+91 9876543217', 'Active', '2024-04-15', SYSUTCDATETIME(), SYSUTCDATETIME(), 0);
+    (1, 'EMP-0001', 'System Admin', 'admin@company.com', 'Admin', 1, '+91 9876543210', 'Active', '2024-01-01', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (2, 'EMP-0002', 'Divya Nair', 'hod@company.com', 'HOD', 1, '+91 9876543211', 'Active', '2024-01-15', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (3, 'EMP-0003', 'Ronak Verma', 'tech@company.com', 'Technician', 1, '+91 9876543212', 'Active', '2024-02-01', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (4, 'EMP-0004', 'Anita Desai', 'anita.desai@company.com', 'Technician', 1, '+91 9876543213', 'Active', '2024-02-15', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (5, 'EMP-0005', 'Suresh Kumar', 'suresh.kumar@company.com', 'Technician', 2, '+91 9876543214', 'Active', '2024-03-01', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (6, 'EMP-0006', 'Meena Joshi', 'meena.joshi@company.com', 'HOD', 2, '+91 9876543215', 'Active', '2024-03-15', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (7, 'EMP-0007', 'Rahul Sharma', 'requestor@company.com', 'Requestor', 4, '+91 9876543216', 'Active', '2024-04-01', SYSUTCDATETIME(), SYSUTCDATETIME(), 0),
+    (8, 'EMP-0008', 'Neha Gupta', 'neha.gupta@company.com', 'Requestor', 5, '+91 9876543217', 'Active', '2024-04-15', SYSUTCDATETIME(), SYSUTCDATETIME(), 0);
 SET IDENTITY_INSERT dbo.Users OFF;
 GO
 

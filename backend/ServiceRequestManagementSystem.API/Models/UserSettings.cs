@@ -35,7 +35,6 @@ namespace ServiceRequestManagementSystem.API.Models
         [Required]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation Property
         public virtual User? User { get; set; }
     }
 }

@@ -24,7 +24,6 @@ namespace ServiceRequestManagementSystem.API.Models
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation Properties
         [ForeignKey(nameof(RequestId))]
         public virtual ServiceRequest? ServiceRequest { get; set; }
 

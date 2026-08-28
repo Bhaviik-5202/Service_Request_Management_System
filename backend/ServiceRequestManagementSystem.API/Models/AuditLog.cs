@@ -34,7 +34,6 @@ namespace ServiceRequestManagementSystem.API.Models
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation Property
         [ForeignKey(nameof(ActorUserId))]
         public virtual User? Actor { get; set; }
     }
