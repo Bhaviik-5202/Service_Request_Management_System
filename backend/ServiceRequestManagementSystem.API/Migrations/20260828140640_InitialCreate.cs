@@ -54,7 +54,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                 {
                     ServiceTypeId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    ServiceTypeName = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    ServiceTypeName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     ServiceTypeCode = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
@@ -74,12 +74,12 @@ namespace ServiceRequestManagementSystem.API.Migrations
                 {
                     UserId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    EmployeeId = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    FullName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    EmployeeId = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    FullName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     Role = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     DepartmentId = table.Column<int>(type: "int", nullable: true),
-                    Phone = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: true),
+                    Phone = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     JoinedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -134,7 +134,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     AssetTag = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     AssetName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Category = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    SerialNumber = table.Column<string>(type: "nvarchar(15)", maxLength: 15, nullable: false),
+                    SerialNumber = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     AssignedToUserId = table.Column<int>(type: "int", nullable: true),
                     DepartmentId = table.Column<int>(type: "int", nullable: true),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -412,7 +412,8 @@ namespace ServiceRequestManagementSystem.API.Migrations
                         name: "FK_ServiceRequestReplies_ServiceRequestStatuses_StatusTransitionId",
                         column: x => x.StatusTransitionId,
                         principalTable: "ServiceRequestStatuses",
-                        principalColumn: "StatusId");
+                        principalColumn: "StatusId",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_ServiceRequestReplies_ServiceRequests_RequestId",
                         column: x => x.RequestId,
@@ -424,7 +425,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                         column: x => x.AuthorUserId,
                         principalTable: "Users",
                         principalColumn: "UserId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -453,7 +454,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                         column: x => x.ChangedByUserId,
                         principalTable: "Users",
                         principalColumn: "UserId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(

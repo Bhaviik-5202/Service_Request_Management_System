@@ -54,22 +54,22 @@ namespace ServiceRequestManagementSystem.API.Data
 
                 entity.Property(u => u.EmployeeId)
                     .IsRequired()
-                    .HasMaxLength(10);
+                    .HasMaxLength(20);
 
                 entity.Property(u => u.FullName)
                     .IsRequired()
-                    .HasMaxLength(50);
+                    .HasMaxLength(100);
 
                 entity.Property(u => u.Email)
                     .IsRequired()
-                    .HasMaxLength(50);
+                    .HasMaxLength(256);
 
                 entity.Property(u => u.Role)
                     .HasConversion<string>()
                     .IsRequired();
 
                 entity.Property(u => u.Phone)
-                    .HasMaxLength(10);
+                    .HasMaxLength(20);
 
                 entity.Property(u => u.Status)
                     .HasConversion<string>()
@@ -216,7 +216,7 @@ namespace ServiceRequestManagementSystem.API.Data
 
                 entity.Property(st => st.ServiceTypeName)
                     .IsRequired()
-                    .HasMaxLength(20);
+                    .HasMaxLength(50);
 
                 entity.Property(st => st.ServiceTypeCode)
                     .IsRequired()
@@ -574,7 +574,7 @@ namespace ServiceRequestManagementSystem.API.Data
 
                 entity.Property(a => a.SerialNumber)
                     .IsRequired()
-                    .HasMaxLength(15);
+                    .HasMaxLength(100);
 
                 entity.Property(a => a.Status)
                     .HasConversion<string>()
