@@ -6,7 +6,7 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public string Theme { get; set; } = "light";
 
-        public bool TwoFactorEnabled { get; set; } = false;
+        public bool TwoFactorEnabled { get; set; }
 
         public bool NotifyRequestUpdates { get; set; } = true;
 
@@ -14,12 +14,12 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public bool NotifySLAWarnings { get; set; } = true;
 
-        public bool NotifyAssetEvents { get; set; } = false;
+        public bool NotifyAssetEvents { get; set; }
 
-        public bool NotifyEmailDigest { get; set; } = false;
+        public bool NotifyEmailDigest { get; set; }
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual User? User { get; set; }
+        public User? User { get; set; }
     }
 }

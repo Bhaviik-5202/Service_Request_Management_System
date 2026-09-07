@@ -30,12 +30,12 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
 
         public DateTime? DeletedAt { get; set; }
 
-        public virtual User? AssignedTo { get; set; }
+        public User? AssignedTo { get; set; }
 
-        public virtual Department? Department { get; set; }
+        public Department? Department { get; set; }
     }
 }

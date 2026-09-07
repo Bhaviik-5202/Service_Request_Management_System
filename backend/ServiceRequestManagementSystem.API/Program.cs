@@ -1,8 +1,8 @@
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
-using Scalar.AspNetCore;
 using ServiceRequestManagementSystem.API.Data;
+using FluentValidation;
 using ServiceRequestManagementSystem.API.Validator;
+using Scalar.AspNetCore;
 
 namespace ServiceRequestManagementSystem.API
 {

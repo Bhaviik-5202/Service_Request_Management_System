@@ -14,8 +14,8 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public string Note { get; set; } = string.Empty;
 
-        public virtual ServiceRequest? ServiceRequest { get; set; }
+        public ServiceRequest? ServiceRequest { get; set; }
 
-        public virtual User? ChangedBy { get; set; }
+        public User? ChangedBy { get; set; }
     }
 }

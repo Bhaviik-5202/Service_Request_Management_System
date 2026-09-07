@@ -8,7 +8,7 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public int DepartmentId { get; set; }
 
-        public bool IsHOD { get; set; } = false;
+        public bool IsHOD { get; set; }
 
         public bool IsActive { get; set; } = true;
 
@@ -16,15 +16,14 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
 
         public DateTime? DeletedAt { get; set; }
 
-        public virtual User? User { get; set; }
+        public User? User { get; set; }
 
-        public virtual Department? Department { get; set; }
+        public Department? Department { get; set; }
 
-        public virtual ICollection<RequestTypeTechnicianMapping> RequestTypeTechnicianMappings { get; set; }
-            = new List<RequestTypeTechnicianMapping>();
+        public ICollection<RequestTypeTechnicianMapping> RequestTypeTechnicianMappings { get; set; } = new List<RequestTypeTechnicianMapping>();
     }
 }

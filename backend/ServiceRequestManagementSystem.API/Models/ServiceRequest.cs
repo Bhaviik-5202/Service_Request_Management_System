@@ -30,31 +30,30 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public bool IsDeleted { get; set; } = false;
+        public DateTime? ResolvedAt { get; set; }
+
+        public bool IsDeleted { get; set; }
 
         public DateTime? DeletedAt { get; set; }
 
-        public virtual ServiceType? ServiceType { get; set; }
+        public ServiceType? ServiceType { get; set; }
 
-        public virtual RequestType? RequestType { get; set; }
+        public RequestType? RequestType { get; set; }
 
-        public virtual Department? Department { get; set; }
+        public Department? Department { get; set; }
 
-        public virtual User? Requester { get; set; }
+        public User? Requester { get; set; }
 
-        public virtual User? Assignee { get; set; }
+        public User? Assignee { get; set; }
 
-        public virtual ServiceRequestStatus? Status { get; set; }
+        public ServiceRequestStatus? Status { get; set; }
 
-        public virtual ICollection<ServiceRequestReply> Replies { get; set; }
-            = new List<ServiceRequestReply>();
+        public Approval? Approval { get; set; }
 
-        public virtual ICollection<ServiceRequestTimeline> TimelineEntries { get; set; }
-            = new List<ServiceRequestTimeline>();
+        public ICollection<ServiceRequestReply> Replies { get; set; } = new List<ServiceRequestReply>();
 
-        public virtual ICollection<ServiceRequestAttachment> Attachments { get; set; }
-            = new List<ServiceRequestAttachment>();
+        public ICollection<ServiceRequestTimeline> TimelineEntries { get; set; } = new List<ServiceRequestTimeline>();
 
-        public virtual Approval? Approval { get; set; }
+        public ICollection<ServiceRequestAttachment> Attachments { get; set; } = new List<ServiceRequestAttachment>();
     }
 }

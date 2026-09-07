@@ -32,8 +32,8 @@ namespace ServiceRequestManagementSystem.API.Validator
             RuleFor(x => x.ServiceTypeName)
                 .NotEmpty()
                 .WithMessage("Service type name is required.")
-                .MaximumLength(20)
-                .WithMessage("Service type name cannot exceed 20 characters.");
+                .MaximumLength(50)
+                .WithMessage("Service type name cannot exceed 50 characters.");
 
             RuleFor(x => x.ServiceTypeCode)
                 .NotEmpty()
@@ -80,6 +80,34 @@ namespace ServiceRequestManagementSystem.API.Validator
             RuleFor(x => x.ColorCode)
                 .MaximumLength(100)
                 .WithMessage("Color code cannot exceed 100 characters.");
+        }
+    }
+
+    public class DepartmentPersonnelDtoValidator : AbstractValidator<DepartmentPersonnelDto>
+    {
+        public DepartmentPersonnelDtoValidator()
+        {
+            RuleFor(x => x.UserId)
+                .GreaterThan(0)
+                .WithMessage("Valid user ID is required.");
+
+            RuleFor(x => x.DepartmentId)
+                .GreaterThan(0)
+                .WithMessage("Valid department ID is required.");
+        }
+    }
+
+    public class RequestTypeTechnicianMappingDtoValidator : AbstractValidator<RequestTypeTechnicianMappingDto>
+    {
+        public RequestTypeTechnicianMappingDtoValidator()
+        {
+            RuleFor(x => x.RequestTypeId)
+                .GreaterThan(0)
+                .WithMessage("Valid request type ID is required.");
+
+            RuleFor(x => x.DepartmentPersonnelId)
+                .GreaterThan(0)
+                .WithMessage("Valid department personnel ID is required.");
         }
     }
 }

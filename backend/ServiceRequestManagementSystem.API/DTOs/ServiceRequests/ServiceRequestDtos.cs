@@ -31,6 +31,8 @@ namespace ServiceRequestManagementSystem.API.DTOs.ServiceRequests
         public DateTime CreatedAt { get; set; }
 
         public DateTime UpdatedAt { get; set; }
+
+        public DateTime? ResolvedAt { get; set; }
     }
 
     public class ServiceRequestDetailResponseDto : ServiceRequestResponseDto
@@ -44,6 +46,8 @@ namespace ServiceRequestManagementSystem.API.DTOs.ServiceRequests
 
     public class CreateServiceRequestDto
     {
+        public int RequesterUserId { get; set; }
+
         public string Title { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;
@@ -71,6 +75,8 @@ namespace ServiceRequestManagementSystem.API.DTOs.ServiceRequests
 
     public class CreateReplyDto
     {
+        public int AuthorUserId { get; set; }
+
         public string Message { get; set; } = string.Empty;
 
         public int? StatusTransitionId { get; set; }

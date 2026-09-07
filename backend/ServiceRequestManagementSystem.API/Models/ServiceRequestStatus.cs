@@ -14,7 +14,6 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual ICollection<ServiceRequest> ServiceRequests { get; set; }
-            = new List<ServiceRequest>();
+        public ICollection<ServiceRequest> ServiceRequests { get; set; } = new List<ServiceRequest>();
     }
 }

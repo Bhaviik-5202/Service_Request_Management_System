@@ -10,7 +10,7 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public string? Description { get; set; }
 
-        public bool RequiresApproval { get; set; } = false;
+        public bool RequiresApproval { get; set; }
 
         public bool IsActive { get; set; } = true;
 
@@ -18,16 +18,14 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
 
         public DateTime? DeletedAt { get; set; }
 
-        public virtual ServiceType? ServiceType { get; set; }
+        public ServiceType? ServiceType { get; set; }
 
-        public virtual ICollection<RequestTypeTechnicianMapping> RequestTypeTechnicianMappings { get; set; }
-            = new List<RequestTypeTechnicianMapping>();
+        public ICollection<RequestTypeTechnicianMapping> RequestTypeTechnicianMappings { get; set; } = new List<RequestTypeTechnicianMapping>();
 
-        public virtual ICollection<ServiceRequest> ServiceRequests { get; set; }
-            = new List<ServiceRequest>();
+        public ICollection<ServiceRequest> ServiceRequests { get; set; } = new List<ServiceRequest>();
     }
 }

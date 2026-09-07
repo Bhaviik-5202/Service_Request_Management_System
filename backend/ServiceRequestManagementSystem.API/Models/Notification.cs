@@ -12,12 +12,12 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public string Message { get; set; } = string.Empty;
 
-        public bool IsRead { get; set; } = false;
+        public bool IsRead { get; set; }
 
         public NotificationType NotificationType { get; set; } = NotificationType.System;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual User? User { get; set; }
+        public User? User { get; set; }
     }
 }

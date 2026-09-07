@@ -20,6 +20,6 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual User? Actor { get; set; }
+        public User? Actor { get; set; }
     }
 }

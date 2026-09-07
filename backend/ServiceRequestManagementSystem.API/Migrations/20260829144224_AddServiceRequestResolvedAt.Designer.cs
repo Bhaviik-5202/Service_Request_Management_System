@@ -12,8 +12,8 @@ using ServiceRequestManagementSystem.API.Data;
 namespace ServiceRequestManagementSystem.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260828140640_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260829144224_AddServiceRequestResolvedAt")]
+    partial class AddServiceRequestResolvedAt
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -435,6 +435,9 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.Property<int>("RequesterUserId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("ServiceTypeId")
                         .HasColumnType("int");

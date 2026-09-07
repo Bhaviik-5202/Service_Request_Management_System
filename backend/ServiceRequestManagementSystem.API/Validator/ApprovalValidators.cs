@@ -8,6 +8,10 @@ namespace ServiceRequestManagementSystem.API.Validator
     {
         public ApprovalDecisionDtoValidator()
         {
+            RuleFor(x => x.DecidedByUserId)
+                .GreaterThan(0)
+                .WithMessage("Valid decision maker user ID is required.");
+
             RuleFor(x => x.Decision)
                 .Must(decision =>
                     decision == ApprovalStatus.Approved ||

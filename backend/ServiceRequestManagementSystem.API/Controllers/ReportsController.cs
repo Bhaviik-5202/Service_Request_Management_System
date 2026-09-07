@@ -22,21 +22,27 @@ namespace ServiceRequestManagementSystem.API.Controllers
         public async Task<ActionResult<ApiResponseDto<IEnumerable<DepartmentReportDto>>>> GetDepartmentReport()
         {
             var departments = await _context.Departments
-                .Where(d => !d.IsDeleted)
+                .AsNoTracking()
                 .Select(d => new DepartmentReportDto
                 {
                     DepartmentId = d.DepartmentId,
                     DepartmentName = d.DepartmentName,
-                    TotalRequests = d.ServiceRequests.Count(r => !r.IsDeleted),
-                    ResolvedRequests = d.ServiceRequests.Count(r => !r.IsDeleted && r.Status != null && r.Status.StatusName == "Resolved")
+                    TotalRequests = d.ServiceRequests.Count(),
+                    ResolvedRequests = d.ServiceRequests.Count(r =>
+                        r.Status != null &&
+                        r.Status.StatusName == RequestStatusNames.Resolved)
                 })
                 .ToListAsync();
 
             foreach (var department in departments)
             {
-                department.ResolutionRatePercentage = department.TotalRequests == 0
-                    ? 0
-                    : department.ResolvedRequests * 100.0 / department.TotalRequests;
+                department.ResolutionRatePercentage =
+                    department.TotalRequests == 0
+                        ? 0
+                        : Math.Round(
+                            department.ResolvedRequests * 100.0 /
+                            department.TotalRequests,
+                            2);
             }
 
             return Ok(new ApiResponseDto<IEnumerable<DepartmentReportDto>>
@@ -51,13 +57,15 @@ namespace ServiceRequestManagementSystem.API.Controllers
         public async Task<ActionResult<ApiResponseDto<IEnumerable<SlaReportDto>>>> GetSlaReport()
         {
             var requests = await _context.ServiceRequests
-                .Where(r => !r.IsDeleted)
+                .AsNoTracking()
                 .Select(r => new
                 {
                     r.Priority,
                     r.CreatedAt,
-                    r.UpdatedAt,
-                    StatusName = r.Status != null ? r.Status.StatusName : null
+                    r.ResolvedAt,
+                    StatusName = r.Status != null
+                        ? r.Status.StatusName
+                        : null
                 })
                 .ToListAsync();
 
@@ -65,17 +73,17 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 .GroupBy(r => r.Priority)
                 .Select(group =>
                 {
-                    var targetHours = group.Key switch
-                    {
-                        Priority.Critical => 4,
-                        Priority.High => 8,
-                        Priority.Medium => 24,
-                        Priority.Low => 48,
-                        _ => 24
-                    };
+                    var targetHours = GetSlaHours(group.Key);
 
-                    var resolvedRequests = group.Where(r => r.StatusName == "Resolved").ToList();
-                    var compliantTickets = resolvedRequests.Count(r => (r.UpdatedAt - r.CreatedAt).TotalHours <= targetHours);
+                    var resolvedRequests = group
+                        .Where(r =>
+                            r.StatusName == RequestStatusNames.Resolved &&
+                            r.ResolvedAt.HasValue)
+                        .ToList();
+
+                    var compliantTickets = resolvedRequests.Count(r =>
+                        (r.ResolvedAt!.Value - r.CreatedAt).TotalHours <= targetHours);
+
                     var compliancePercentage = resolvedRequests.Count == 0
                         ? 0
                         : compliantTickets * 100.0 / resolvedRequests.Count;
@@ -86,7 +94,9 @@ namespace ServiceRequestManagementSystem.API.Controllers
                         TargetResolutionHours = targetHours,
                         TotalTickets = resolvedRequests.Count,
                         CompliantTickets = compliantTickets,
-                        CompliancePercentage = compliancePercentage
+                        CompliancePercentage = Math.Round(
+                            compliancePercentage,
+                            2)
                     };
                 })
                 .OrderByDescending(r => r.CompliancePercentage)
@@ -104,28 +114,59 @@ namespace ServiceRequestManagementSystem.API.Controllers
         public async Task<ActionResult<ApiResponseDto<IEnumerable<TrendsReportDto>>>> GetTrends()
         {
             var requests = await _context.ServiceRequests
-                .Where(r => !r.IsDeleted)
+                .AsNoTracking()
                 .Select(r => new
                 {
                     r.CreatedAt,
-                    r.UpdatedAt,
-                    StatusName = r.Status != null ? r.Status.StatusName : null
+                    r.ResolvedAt,
+                    StatusName = r.Status != null
+                        ? r.Status.StatusName
+                        : null
                 })
                 .ToListAsync();
 
-            var trends = requests
+            var createdByMonth = requests
                 .GroupBy(r => new
                 {
                     r.CreatedAt.Year,
                     r.CreatedAt.Month
                 })
-                .OrderBy(group => group.Key.Year)
-                .ThenBy(group => group.Key.Month)
-                .Select(group => new TrendsReportDto
+                .ToDictionary(
+                    g => (g.Key.Year, g.Key.Month),
+                    g => g.Count());
+
+            var resolvedByMonth = requests
+                .Where(r =>
+                    r.StatusName == RequestStatusNames.Resolved &&
+                    r.ResolvedAt.HasValue)
+                .GroupBy(r => new
                 {
-                    Month = $"{group.Key.Year}-{group.Key.Month:00}",
-                    CreatedCount = group.Count(),
-                    ResolvedCount = group.Count(r => r.StatusName == "Resolved")
+                    r.ResolvedAt!.Value.Year,
+                    r.ResolvedAt.Value.Month
+                })
+                .ToDictionary(
+                    g => (g.Key.Year, g.Key.Month),
+                    g => g.Count());
+
+            var months = createdByMonth.Keys
+                .Union(resolvedByMonth.Keys)
+                .OrderBy(x => x.Year)
+                .ThenBy(x => x.Month);
+
+            var trends = months
+                .Select(month => new TrendsReportDto
+                {
+                    Month = $"{month.Year}-{month.Month:00}",
+                    CreatedCount = createdByMonth.TryGetValue(
+                        month,
+                        out var created)
+                        ? created
+                        : 0,
+                    ResolvedCount = resolvedByMonth.TryGetValue(
+                        month,
+                        out var resolved)
+                        ? resolved
+                        : 0
                 })
                 .ToList();
 
@@ -135,6 +176,18 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Message = "Request trends fetched successfully.",
                 Data = trends
             });
+        }
+
+        private static int GetSlaHours(Priority priority)
+        {
+            return priority switch
+            {
+                Priority.Critical => 4,
+                Priority.High => 8,
+                Priority.Medium => 24,
+                Priority.Low => 48,
+                _ => 24
+            };
         }
     }
 }

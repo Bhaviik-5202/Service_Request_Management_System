@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Data;
 using ServiceRequestManagementSystem.API.DTOs.AuditLogs;
 using ServiceRequestManagementSystem.API.DTOs.Common;
+using ServiceRequestManagementSystem.API.Models;
 
 namespace ServiceRequestManagementSystem.API.Controllers
 {
@@ -18,99 +19,59 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<AuditLogResponseDto>>>> GetAuditLogs(
-            [FromQuery] int? actorUserId,
-            [FromQuery] string? action,
-            [FromQuery] string? targetType,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<AuditLogResponseDto>>>> GetAuditLogs()
         {
-            if (pageNumber < 1)
-                pageNumber = 1;
-
-            if (pageSize < 1)
-                pageSize = 10;
-
-            if (pageSize > 100)
-                pageSize = 100;
-
-            var query = _context.AuditLogs
-                .Include(a => a.Actor)
-                .AsQueryable();
-
-            if (actorUserId.HasValue)
-                query = query.Where(a => a.ActorUserId == actorUserId.Value);
-
-            if (!string.IsNullOrWhiteSpace(action))
-            {
-                var actionText = action.Trim().ToLower();
-                query = query.Where(a => a.Action.ToLower().Contains(actionText));
-            }
-
-            if (!string.IsNullOrWhiteSpace(targetType))
-            {
-                var targetTypeText = targetType.Trim().ToLower();
-                query = query.Where(a => a.TargetType.ToLower().Contains(targetTypeText));
-            }
-
-            var totalRecords = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
-
-            var auditLogs = await query
+            var auditLogs = await _context.AuditLogs
+                .AsNoTracking()
                 .OrderByDescending(a => a.CreatedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(a => new AuditLogResponseDto
-                {
-                    AuditLogId = a.AuditLogId,
-                    ActorUserId = a.ActorUserId,
-                    ActorName = a.Actor != null ? a.Actor.FullName : null,
-                    Action = a.Action,
-                    TargetType = a.TargetType,
-                    TargetId = a.TargetId,
-                    TargetDisplay = a.TargetDisplay,
-                    Detail = a.Detail,
-                    IpAddress = a.IpAddress,
-                    CreatedAt = a.CreatedAt
-                })
+                .Select(AuditLogResponseSelector)
                 .ToListAsync();
 
             return Ok(new ApiResponseDto<IEnumerable<AuditLogResponseDto>>
             {
                 Success = true,
                 Message = "Audit logs fetched successfully.",
-                Data = auditLogs,
-                Pagination = new PaginationMetadataDto
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalPages = totalPages,
-                    TotalRecords = totalRecords
-                }
+                Data = auditLogs
             });
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<ApiResponseDto<AuditLogResponseDto>>> GetAuditLogById(long id)
+        public async Task<ActionResult<ApiResponseDto<AuditLogResponseDto>>> GetAuditLogById(
+            long id)
         {
             var auditLog = await _context.AuditLogs
-                .Include(a => a.Actor)
-                .FirstOrDefaultAsync(a => a.AuditLogId == id);
+                .AsNoTracking()
+                .Where(a => a.AuditLogId == id)
+                .Select(AuditLogResponseSelector)
+                .FirstOrDefaultAsync();
 
             if (auditLog == null)
             {
                 return NotFound(new ApiResponseDto<AuditLogResponseDto>
                 {
                     Success = false,
-                    Message = "Audit log not found."
+                    Message = "Audit log not found.",
+                    Data = null
                 });
             }
 
-            var response = new AuditLogResponseDto
+            return Ok(new ApiResponseDto<AuditLogResponseDto>
+            {
+                Success = true,
+                Message = "Audit log fetched successfully.",
+                Data = auditLog
+            });
+        }
+
+        private static readonly System.Linq.Expressions.Expression<
+            Func<AuditLog, AuditLogResponseDto>> AuditLogResponseSelector = auditLog =>
+            new AuditLogResponseDto
             {
                 AuditLogId = auditLog.AuditLogId,
                 ActorUserId = auditLog.ActorUserId,
-                ActorName = auditLog.Actor?.FullName,
+                ActorName = auditLog.Actor != null
+                    ? auditLog.Actor.FullName
+                    : null,
                 Action = auditLog.Action,
                 TargetType = auditLog.TargetType,
                 TargetId = auditLog.TargetId,
@@ -119,13 +80,5 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 IpAddress = auditLog.IpAddress,
                 CreatedAt = auditLog.CreatedAt
             };
-
-            return Ok(new ApiResponseDto<AuditLogResponseDto>
-            {
-                Success = true,
-                Message = "Audit log fetched successfully.",
-                Data = response
-            });
-        }
     }
 }

@@ -16,19 +16,16 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
 
         public DateTime? DeletedAt { get; set; }
 
-        public virtual ICollection<User> Users { get; set; } = new List<User>();
+        public ICollection<User> Users { get; set; } = new List<User>();
 
-        public virtual ICollection<DepartmentPersonnel> DepartmentPersonnels { get; set; }
-            = new List<DepartmentPersonnel>();
+        public ICollection<DepartmentPersonnel> DepartmentPersonnels { get; set; } = new List<DepartmentPersonnel>();
 
-        public virtual ICollection<ServiceRequest> ServiceRequests { get; set; }
-            = new List<ServiceRequest>();
+        public ICollection<ServiceRequest> ServiceRequests { get; set; } = new List<ServiceRequest>();
 
-        public virtual ICollection<Asset> Assets { get; set; }
-            = new List<Asset>();
+        public ICollection<Asset> Assets { get; set; } = new List<Asset>();
     }
 }

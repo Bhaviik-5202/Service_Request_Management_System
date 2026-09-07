@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Data;
@@ -13,200 +14,144 @@ namespace ServiceRequestManagementSystem.API.Controllers
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IValidator<CreateUserDto> _createValidator;
+        private readonly IValidator<UpdateUserDto> _updateValidator;
 
-        public UsersController(AppDbContext context)
+        public UsersController(
+            AppDbContext context,
+            IValidator<CreateUserDto> createValidator,
+            IValidator<UpdateUserDto> updateValidator)
         {
             _context = context;
+            _createValidator = createValidator;
+            _updateValidator = updateValidator;
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<UserResponseDto>>>> GetUsers(
-            [FromQuery] UserRole? role,
-            [FromQuery] int? departmentId,
-            [FromQuery] UserStatus? status,
-            [FromQuery] string? search,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<UserResponseDto>>>> GetUsers()
         {
-            var query = _context.Users
-                .Include(u => u.Department)
-                .AsQueryable();
-
-            if (role.HasValue)
-                query = query.Where(u => u.Role == role.Value);
-
-            if (departmentId.HasValue)
-                query = query.Where(u => u.DepartmentId == departmentId.Value);
-
-            if (status.HasValue)
-                query = query.Where(u => u.Status == status.Value);
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var s = search.Trim().ToLower();
-
-                query = query.Where(u =>
-                    u.FullName.ToLower().Contains(s) ||
-                    u.Email.ToLower().Contains(s) ||
-                    u.EmployeeId.ToLower().Contains(s));
-            }
-
-            var totalRecords = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
-
-            var users = await query
-                .OrderByDescending(u => u.CreatedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(u => new UserResponseDto
-                {
-                    UserId = u.UserId,
-                    EmployeeId = u.EmployeeId,
-                    FullName = u.FullName,
-                    Email = u.Email,
-                    Role = u.Role,
-                    DepartmentId = u.DepartmentId,
-                    DepartmentName = u.Department != null ? u.Department.DepartmentName : null,
-                    Phone = u.Phone,
-                    Status = u.Status,
-                    JoinedDate = u.JoinedDate,
-                    RequestsRaised = _context.ServiceRequests.Count(r => r.RequesterUserId == u.UserId),
-                    RequestsResolved = _context.ServiceRequests.Count(r => r.AssigneeUserId == u.UserId && r.Status != null && r.Status.StatusName == "Resolved")
-                })
+            var users = await _context.Users
+                .AsNoTracking()
+                .OrderBy(u => u.UserId)
+                .Select(UserResponseSelector)
                 .ToListAsync();
 
             return Ok(new ApiResponseDto<IEnumerable<UserResponseDto>>
             {
                 Success = true,
-                Message = "Users fetched successfully.",
-                Data = users,
-                Pagination = new PaginationMetadataDto
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalPages = totalPages,
-                    TotalRecords = totalRecords
-                }
+                Message = "Users retrieved successfully.",
+                Data = users
             });
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> GetUserById(int id)
+        public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> GetUser(int id)
         {
             var user = await _context.Users
-                .Include(u => u.Department)
-                .FirstOrDefaultAsync(u => u.UserId == id);
+                .AsNoTracking()
+                .Where(u => u.UserId == id)
+                .Select(UserResponseSelector)
+                .FirstOrDefaultAsync();
 
             if (user == null)
             {
                 return NotFound(new ApiResponseDto<UserResponseDto>
                 {
                     Success = false,
-                    Message = "User not found."
+                    Message = "User not found.",
+                    Data = null
                 });
             }
-
-            var response = new UserResponseDto
-            {
-                UserId = user.UserId,
-                EmployeeId = user.EmployeeId,
-                FullName = user.FullName,
-                Email = user.Email,
-                Role = user.Role,
-                DepartmentId = user.DepartmentId,
-                DepartmentName = user.Department?.DepartmentName,
-                Phone = user.Phone,
-                Status = user.Status,
-                JoinedDate = user.JoinedDate,
-                RequestsRaised = await _context.ServiceRequests.CountAsync(r => r.RequesterUserId == user.UserId),
-                RequestsResolved = await _context.ServiceRequests.CountAsync(r => r.AssigneeUserId == user.UserId && r.Status != null && r.Status.StatusName == "Resolved")
-            };
 
             return Ok(new ApiResponseDto<UserResponseDto>
             {
                 Success = true,
-                Data = response
+                Message = "User retrieved successfully.",
+                Data = user
             });
         }
 
         [HttpPost]
         public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> CreateUser(
-            [FromBody] CreateUserDto dto)
+            CreateUserDto dto)
         {
-            if (!ModelState.IsValid)
+            var validationResult = await _createValidator.ValidateAsync(dto);
+
+            if (!validationResult.IsValid)
             {
                 return BadRequest(new ApiResponseDto<UserResponseDto>
                 {
                     Success = false,
-                    Message = "Invalid payload."
+                    Message = validationResult.Errors.First().ErrorMessage,
+                    Data = null
                 });
             }
 
-            var exists = await _context.Users.AnyAsync(u =>
-                u.Email == dto.Email ||
-                u.EmployeeId == dto.EmployeeId);
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var employeeId = dto.EmployeeId.Trim();
+
+            var exists = await _context.Users
+                .AnyAsync(u =>
+                    u.Email == email ||
+                    u.EmployeeId == employeeId);
 
             if (exists)
             {
                 return BadRequest(new ApiResponseDto<UserResponseDto>
                 {
                     Success = false,
-                    Message = "User with this email or employee ID already exists."
+                    Message = "Email or employee ID already exists.",
+                    Data = null
                 });
             }
 
+            if (dto.DepartmentId.HasValue)
+            {
+                var departmentExists = await _context.Departments
+                    .AnyAsync(d =>
+                        d.DepartmentId == dto.DepartmentId.Value &&
+                        d.IsActive);
+
+                if (!departmentExists)
+                {
+                    return BadRequest(new ApiResponseDto<UserResponseDto>
+                    {
+                        Success = false,
+                        Message = "Invalid or inactive department.",
+                        Data = null
+                    });
+                }
+            }
+
+            var now = DateTime.UtcNow;
+
             var user = new User
             {
-                EmployeeId = dto.EmployeeId,
-                FullName = dto.FullName,
-                Email = dto.Email,
+                EmployeeId = employeeId,
+                FullName = dto.FullName.Trim(),
+                Email = email,
                 Role = dto.Role,
                 DepartmentId = dto.DepartmentId,
-                Phone = dto.Phone,
+                Phone = string.IsNullOrWhiteSpace(dto.Phone)
+                    ? null
+                    : dto.Phone.Trim(),
                 Status = UserStatus.Active,
-                JoinedDate = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                JoinedDate = now,
+                CreatedAt = now,
+                UpdatedAt = now
             };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            _context.UserSettings.Add(new UserSettings
-            {
-                UserId = user.UserId,
-                Theme = "light",
-                UpdatedAt = DateTime.UtcNow
-            });
-
-            _context.AuditLogs.Add(new AuditLog
-            {
-                ActorUserId = user.UserId,
-                Action = "Create",
-                TargetType = "User",
-                TargetId = user.UserId.ToString(),
-                TargetDisplay = user.FullName,
-                Detail = $"User {user.FullName} ({user.EmployeeId}) created with role {user.Role}.",
-                CreatedAt = DateTime.UtcNow
-            });
-
-            await _context.SaveChangesAsync();
-
-            var response = new UserResponseDto
-            {
-                UserId = user.UserId,
-                EmployeeId = user.EmployeeId,
-                FullName = user.FullName,
-                Email = user.Email,
-                Role = user.Role,
-                DepartmentId = user.DepartmentId,
-                Phone = user.Phone,
-                Status = user.Status,
-                JoinedDate = user.JoinedDate
-            };
+            var response = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.UserId == user.UserId)
+                .Select(UserResponseSelector)
+                .FirstAsync();
 
             return CreatedAtAction(
-                nameof(GetUserById),
+                nameof(GetUser),
                 new { id = user.UserId },
                 new ApiResponseDto<UserResponseDto>
                 {
@@ -219,51 +164,67 @@ namespace ServiceRequestManagementSystem.API.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> UpdateUser(
             int id,
-            [FromBody] UpdateUserDto dto)
+            UpdateUserDto dto)
         {
-            var user = await _context.Users.FindAsync(id);
+            var validationResult = await _updateValidator.ValidateAsync(dto);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(new ApiResponseDto<UserResponseDto>
+                {
+                    Success = false,
+                    Message = validationResult.Errors.First().ErrorMessage,
+                    Data = null
+                });
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.UserId == id);
 
             if (user == null)
             {
                 return NotFound(new ApiResponseDto<UserResponseDto>
                 {
                     Success = false,
-                    Message = "User not found."
+                    Message = "User not found.",
+                    Data = null
                 });
             }
 
-            user.FullName = dto.FullName;
+            if (dto.DepartmentId.HasValue)
+            {
+                var departmentExists = await _context.Departments
+                    .AnyAsync(d =>
+                        d.DepartmentId == dto.DepartmentId.Value &&
+                        d.IsActive);
+
+                if (!departmentExists)
+                {
+                    return BadRequest(new ApiResponseDto<UserResponseDto>
+                    {
+                        Success = false,
+                        Message = "Invalid or inactive department.",
+                        Data = null
+                    });
+                }
+            }
+
+            user.FullName = dto.FullName.Trim();
             user.Role = dto.Role;
             user.DepartmentId = dto.DepartmentId;
-            user.Phone = dto.Phone;
+            user.Phone = string.IsNullOrWhiteSpace(dto.Phone)
+                ? null
+                : dto.Phone.Trim();
             user.Status = dto.Status;
             user.UpdatedAt = DateTime.UtcNow;
 
-            _context.AuditLogs.Add(new AuditLog
-            {
-                ActorUserId = user.UserId,
-                Action = "Update",
-                TargetType = "User",
-                TargetId = user.UserId.ToString(),
-                TargetDisplay = user.FullName,
-                Detail = $"User {user.FullName} updated.",
-                CreatedAt = DateTime.UtcNow
-            });
-
             await _context.SaveChangesAsync();
 
-            var response = new UserResponseDto
-            {
-                UserId = user.UserId,
-                EmployeeId = user.EmployeeId,
-                FullName = user.FullName,
-                Email = user.Email,
-                Role = user.Role,
-                DepartmentId = user.DepartmentId,
-                Phone = user.Phone,
-                Status = user.Status,
-                JoinedDate = user.JoinedDate
-            };
+            var response = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.UserId == id)
+                .Select(UserResponseSelector)
+                .FirstAsync();
 
             return Ok(new ApiResponseDto<UserResponseDto>
             {
@@ -274,41 +235,57 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult<ApiResponseDto<bool>>> DeleteUser(int id)
+        public async Task<ActionResult<ApiResponseDto<object>>> DeleteUser(int id)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.UserId == id);
 
             if (user == null)
             {
-                return NotFound(new ApiResponseDto<bool>
+                return NotFound(new ApiResponseDto<object>
                 {
                     Success = false,
-                    Message = "User not found."
+                    Message = "User not found.",
+                    Data = null
                 });
             }
 
             user.IsDeleted = true;
             user.DeletedAt = DateTime.UtcNow;
-
-            _context.AuditLogs.Add(new AuditLog
-            {
-                ActorUserId = user.UserId,
-                Action = "Delete",
-                TargetType = "User",
-                TargetId = user.UserId.ToString(),
-                TargetDisplay = user.FullName,
-                Detail = $"User {user.FullName} ({user.EmployeeId}) soft deleted.",
-                CreatedAt = DateTime.UtcNow
-            });
+            user.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
-            return Ok(new ApiResponseDto<bool>
+            return Ok(new ApiResponseDto<object>
             {
                 Success = true,
-                Message = "User soft deleted successfully.",
-                Data = true
+                Message = "User deleted successfully.",
+                Data = null
             });
         }
+
+        private static readonly System.Linq.Expressions.Expression<
+            Func<User, UserResponseDto>> UserResponseSelector = u =>
+            new UserResponseDto
+            {
+                UserId = u.UserId,
+                EmployeeId = u.EmployeeId,
+                FullName = u.FullName,
+                Email = u.Email,
+                Role = u.Role,
+                DepartmentId = u.DepartmentId,
+                DepartmentName = u.Department != null
+                    ? u.Department.DepartmentName
+                    : null,
+                Phone = u.Phone,
+                Status = u.Status,
+                JoinedDate = u.JoinedDate,
+
+                RequestsRaised = u.RequestedRequests.Count(),
+
+                RequestsResolved = u.AssignedRequests.Count(
+                    r => r.Status != null &&
+                         r.Status.StatusName == RequestStatusNames.Resolved)
+            };
     }
 }

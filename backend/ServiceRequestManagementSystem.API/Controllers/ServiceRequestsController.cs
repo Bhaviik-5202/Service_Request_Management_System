@@ -34,64 +34,11 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceRequestResponseDto>>>> GetRequests(
-            [FromQuery] int? statusId,
-            [FromQuery] Priority? priority,
-            [FromQuery] int? serviceTypeId,
-            [FromQuery] int? departmentId,
-            [FromQuery] string? search,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceRequestResponseDto>>>> GetRequests()
         {
-            if (pageNumber < 1)
-                pageNumber = 1;
-
-            if (pageSize < 1)
-                pageSize = 10;
-
-            if (pageSize > 100)
-                pageSize = 100;
-
-            var query = _context.ServiceRequests
-                .Where(r => !r.IsDeleted)
-                .Include(r => r.ServiceType)
-                .Include(r => r.RequestType)
-                .Include(r => r.Department)
-                .Include(r => r.Requester)
-                .Include(r => r.Assignee)
-                .Include(r => r.Status)
-                .AsQueryable();
-
-            if (statusId.HasValue)
-                query = query.Where(r => r.StatusId == statusId.Value);
-
-            if (priority.HasValue)
-                query = query.Where(r => r.Priority == priority.Value);
-
-            if (serviceTypeId.HasValue)
-                query = query.Where(r => r.ServiceTypeId == serviceTypeId.Value);
-
-            if (departmentId.HasValue)
-                query = query.Where(r => r.DepartmentId == departmentId.Value);
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var searchText = search.Trim().ToLower();
-
-                query = query.Where(r =>
-                    r.RequestNumber.ToLower().Contains(searchText) ||
-                    r.Title.ToLower().Contains(searchText) ||
-                    r.Description.ToLower().Contains(searchText) ||
-                    r.Requester!.FullName.ToLower().Contains(searchText));
-            }
-
-            var totalRecords = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
-
-            var requests = await query
-                .OrderByDescending(r => r.CreatedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+            var requests = await _context.ServiceRequests
+                .AsNoTracking()
+                .OrderBy(r => r.RequestId)
                 .Select(r => new ServiceRequestResponseDto
                 {
                     RequestId = r.RequestId,
@@ -103,11 +50,14 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     Department = r.Department!.DepartmentName,
                     Requester = r.Requester!.FullName,
                     RequesterEmail = r.Requester.Email,
-                    Assignee = r.Assignee != null ? r.Assignee.FullName : null,
+                    Assignee = r.Assignee != null
+                        ? r.Assignee.FullName
+                        : null,
                     Status = r.Status!.StatusName,
                     Priority = r.Priority,
                     CreatedAt = r.CreatedAt,
-                    UpdatedAt = r.UpdatedAt
+                    UpdatedAt = r.UpdatedAt,
+                    ResolvedAt = r.ResolvedAt
                 })
                 .ToListAsync();
 
@@ -115,14 +65,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
             {
                 Success = true,
                 Message = "Service requests fetched successfully.",
-                Data = requests,
-                Pagination = new PaginationMetadataDto
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalPages = totalPages,
-                    TotalRecords = totalRecords
-                }
+                Data = requests
             });
         }
 
@@ -130,7 +73,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
         public async Task<ActionResult<ApiResponseDto<ServiceRequestDetailResponseDto>>> GetRequestById(int id)
         {
             var request = await _context.ServiceRequests
-                .Where(r => !r.IsDeleted)
+                .AsSplitQuery()
                 .Include(r => r.ServiceType)
                 .Include(r => r.RequestType)
                 .Include(r => r.Department)
@@ -151,7 +94,8 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return NotFound(new ApiResponseDto<ServiceRequestDetailResponseDto>
                 {
                     Success = false,
-                    Message = "Service request not found."
+                    Message = "Service request not found.",
+                    Data = null
                 });
             }
 
@@ -171,6 +115,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Priority = request.Priority,
                 CreatedAt = request.CreatedAt,
                 UpdatedAt = request.UpdatedAt,
+                ResolvedAt = request.ResolvedAt,
 
                 Replies = request.Replies
                     .OrderBy(r => r.CreatedAt)
@@ -181,7 +126,9 @@ namespace ServiceRequestManagementSystem.API.Controllers
                         Role = r.Author.Role.ToString(),
                         Message = r.Message,
                         CreatedAt = r.CreatedAt,
-                        StatusTransition = r.StatusTransition?.StatusName
+                        StatusTransition = r.StatusTransition != null
+                            ? r.StatusTransition.StatusName
+                            : null
                     })
                     .ToList(),
 
@@ -219,38 +166,40 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
         [HttpPost]
         public async Task<ActionResult<ApiResponseDto<ServiceRequestResponseDto>>> CreateRequest(
-            [FromBody] CreateServiceRequestDto dto)
+            CreateServiceRequestDto dto)
         {
-            var result = await _createValidator.ValidateAsync(dto);
+            var validation = await _createValidator.ValidateAsync(dto);
 
-            if (!result.IsValid)
+            if (!validation.IsValid)
             {
                 return BadRequest(new ApiResponseDto<ServiceRequestResponseDto>
                 {
                     Success = false,
-                    Message = result.Errors.First().ErrorMessage
+                    Message = validation.Errors.First().ErrorMessage,
+                    Data = null
                 });
             }
 
-            var serviceTypeExists = await _context.ServiceTypes
-                .AnyAsync(s =>
+            var serviceTypeName = await _context.ServiceTypes
+                .Where(s =>
                     s.ServiceTypeId == dto.ServiceTypeId &&
-                    !s.IsDeleted &&
-                    s.IsActive);
+                    s.IsActive)
+                .Select(s => s.ServiceTypeName)
+                .FirstOrDefaultAsync();
 
-            if (!serviceTypeExists)
+            if (serviceTypeName == null)
             {
                 return BadRequest(new ApiResponseDto<ServiceRequestResponseDto>
                 {
                     Success = false,
-                    Message = "Invalid or inactive service type."
+                    Message = "Invalid or inactive service type.",
+                    Data = null
                 });
             }
 
             var requestType = await _context.RequestTypes
                 .FirstOrDefaultAsync(r =>
                     r.RequestTypeId == dto.RequestTypeId &&
-                    !r.IsDeleted &&
                     r.IsActive);
 
             if (requestType == null)
@@ -258,7 +207,8 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<ServiceRequestResponseDto>
                 {
                     Success = false,
-                    Message = "Invalid or inactive request type."
+                    Message = "Invalid or inactive request type.",
+                    Data = null
                 });
             }
 
@@ -267,28 +217,31 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<ServiceRequestResponseDto>
                 {
                     Success = false,
-                    Message = "Request type does not belong to the selected service type."
+                    Message = "Request type does not belong to the selected service type.",
+                    Data = null
                 });
             }
 
-            var departmentExists = await _context.Departments
-                .AnyAsync(d =>
+            var departmentName = await _context.Departments
+                .Where(d =>
                     d.DepartmentId == dto.DepartmentId &&
-                    !d.IsDeleted &&
-                    d.IsActive);
+                    d.IsActive)
+                .Select(d => d.DepartmentName)
+                .FirstOrDefaultAsync();
 
-            if (!departmentExists)
+            if (departmentName == null)
             {
                 return BadRequest(new ApiResponseDto<ServiceRequestResponseDto>
                 {
                     Success = false,
-                    Message = "Invalid or inactive department."
+                    Message = "Invalid or inactive department.",
+                    Data = null
                 });
             }
 
             var requester = await _context.Users
                 .FirstOrDefaultAsync(u =>
-                    !u.IsDeleted &&
+                    u.UserId == dto.RequesterUserId &&
                     u.Status == UserStatus.Active);
 
             if (requester == null)
@@ -296,13 +249,14 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<ServiceRequestResponseDto>
                 {
                     Success = false,
-                    Message = "No active user is available to create the request."
+                    Message = "No active user is available to create the request.",
+                    Data = null
                 });
             }
 
             var initialStatusName = requestType.RequiresApproval
-                ? "Pending Approval"
-                : "Open";
+                ? RequestStatusNames.PendingApproval
+                : RequestStatusNames.Open;
 
             var status = await _context.ServiceRequestStatuses
                 .FirstOrDefaultAsync(s =>
@@ -314,46 +268,33 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<ServiceRequestResponseDto>
                 {
                     Success = false,
-                    Message = $"Required status '{initialStatusName}' was not found."
+                    Message = $"Required status '{initialStatusName}' was not found.",
+                    Data = null
                 });
             }
 
-            var currentYear = DateTime.UtcNow.Year;
-            var prefix = $"SR-{currentYear}-";
-
-            var lastRequest = await _context.ServiceRequests
-                .Where(r => r.RequestNumber.StartsWith(prefix))
-                .OrderByDescending(r => r.RequestId)
-                .Select(r => r.RequestNumber)
-                .FirstOrDefaultAsync();
-
-            var nextNumber = 1001;
-
-            if (!string.IsNullOrEmpty(lastRequest))
-            {
-                var numberPart = lastRequest.Replace(prefix, "");
-
-                if (int.TryParse(numberPart, out var lastNumber))
-                    nextNumber = lastNumber + 1;
-            }
+            var now = DateTime.UtcNow;
 
             var request = new ServiceRequest
             {
-                RequestNumber = $"{prefix}{nextNumber}",
-                Title = dto.Title,
-                Description = dto.Description,
+                RequestNumber = $"TMP-{Guid.NewGuid():N}"[..16],
+                Title = dto.Title.Trim(),
+                Description = dto.Description.Trim(),
                 ServiceTypeId = dto.ServiceTypeId,
                 RequestTypeId = dto.RequestTypeId,
                 DepartmentId = dto.DepartmentId,
                 RequesterUserId = requester.UserId,
                 StatusId = status.StatusId,
                 Priority = dto.Priority,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = now,
+                UpdatedAt = now
             };
 
             _context.ServiceRequests.Add(request);
+
             await _context.SaveChangesAsync();
+
+            request.RequestNumber = $"SR-{now:yyyy}-{request.RequestId:D6}";
 
             if (requestType.RequiresApproval)
             {
@@ -361,31 +302,24 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 {
                     RequestId = request.RequestId,
                     Status = ApprovalStatus.Pending,
-                    SubmittedAt = DateTime.UtcNow
+                    SubmittedAt = now
                 });
             }
 
-            _context.ServiceRequestTimeline.Add(new ServiceRequestTimeline
-            {
-                RequestId = request.RequestId,
-                StatusName = status.StatusName,
-                ChangedByUserId = requester.UserId,
-                ChangedAt = DateTime.UtcNow,
-                Note = requestType.RequiresApproval
+            AddTimeline(
+                request,
+                status.StatusName,
+                requester.UserId,
+                now,
+                requestType.RequiresApproval
                     ? "Request raised and awaiting HOD approval."
-                    : "Request raised."
-            });
+                    : "Request raised.");
 
-            _context.AuditLogs.Add(new AuditLog
-            {
-                ActorUserId = requester.UserId,
-                Action = "Create",
-                TargetType = "ServiceRequest",
-                TargetId = request.RequestId.ToString(),
-                TargetDisplay = request.RequestNumber,
-                Detail = $"Service request '{request.Title}' ({request.RequestNumber}) created.",
-                CreatedAt = DateTime.UtcNow
-            });
+            AddRequestAuditLog(
+                request,
+                "Create",
+                $"Service request '{request.Title}' ({request.RequestNumber}) created.",
+                now);
 
             await _context.SaveChangesAsync();
 
@@ -395,15 +329,16 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 RequestNumber = request.RequestNumber,
                 Title = request.Title,
                 Description = request.Description,
-                ServiceType = dto.ServiceTypeId.ToString(),
-                RequestType = dto.RequestTypeId.ToString(),
-                Department = dto.DepartmentId.ToString(),
+                ServiceType = serviceTypeName,
+                RequestType = requestType.RequestTypeName,
+                Department = departmentName,
                 Requester = requester.FullName,
                 RequesterEmail = requester.Email,
                 Status = status.StatusName,
                 Priority = request.Priority,
                 CreatedAt = request.CreatedAt,
-                UpdatedAt = request.UpdatedAt
+                UpdatedAt = request.UpdatedAt,
+                ResolvedAt = request.ResolvedAt
             };
 
             return CreatedAtAction(
@@ -420,30 +355,30 @@ namespace ServiceRequestManagementSystem.API.Controllers
         [HttpPut("{id}/status")]
         public async Task<ActionResult<ApiResponseDto<bool>>> UpdateStatus(
             int id,
-            [FromBody] UpdateServiceRequestStatusDto dto)
+            UpdateServiceRequestStatusDto dto)
         {
-            var result = await _statusValidator.ValidateAsync(dto);
+            var validation = await _statusValidator.ValidateAsync(dto);
 
-            if (!result.IsValid)
+            if (!validation.IsValid)
             {
                 return BadRequest(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = result.Errors.First().ErrorMessage
+                    Message = validation.Errors.First().ErrorMessage,
+                    Data = false
                 });
             }
 
             var request = await _context.ServiceRequests
-                .FirstOrDefaultAsync(r =>
-                    r.RequestId == id &&
-                    !r.IsDeleted);
+                .FirstOrDefaultAsync(r => r.RequestId == id);
 
             if (request == null)
             {
                 return NotFound(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Service request not found."
+                    Message = "Service request not found.",
+                    Data = false
                 });
             }
 
@@ -457,34 +392,33 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Invalid or inactive status."
+                    Message = "Invalid or inactive status.",
+                    Data = false
                 });
             }
 
+            var updatedAt = DateTime.UtcNow;
+
             request.StatusId = status.StatusId;
-            request.UpdatedAt = DateTime.UtcNow;
+            request.UpdatedAt = updatedAt;
+            request.ResolvedAt = status.StatusName == RequestStatusNames.Resolved
+                ? request.ResolvedAt ?? updatedAt
+                : null;
 
-            _context.ServiceRequestTimeline.Add(new ServiceRequestTimeline
-            {
-                RequestId = request.RequestId,
-                StatusName = status.StatusName,
-                ChangedByUserId = request.RequesterUserId,
-                ChangedAt = DateTime.UtcNow,
-                Note = string.IsNullOrWhiteSpace(dto.Note)
+            AddTimeline(
+                request,
+                status.StatusName,
+                request.RequesterUserId,
+                updatedAt,
+                string.IsNullOrWhiteSpace(dto.Note)
                     ? $"Status updated to {status.StatusName}."
-                    : dto.Note
-            });
+                    : dto.Note);
 
-            _context.AuditLogs.Add(new AuditLog
-            {
-                ActorUserId = request.RequesterUserId,
-                Action = "StatusChange",
-                TargetType = "ServiceRequest",
-                TargetId = request.RequestId.ToString(),
-                TargetDisplay = request.RequestNumber,
-                Detail = $"Status updated to {status.StatusName}.",
-                CreatedAt = DateTime.UtcNow
-            });
+            AddRequestAuditLog(
+                request,
+                "StatusChange",
+                $"Status updated to {status.StatusName}.",
+                updatedAt);
 
             await _context.SaveChangesAsync();
 
@@ -499,37 +433,36 @@ namespace ServiceRequestManagementSystem.API.Controllers
         [HttpPut("{id}/assign")]
         public async Task<ActionResult<ApiResponseDto<bool>>> AssignTechnician(
             int id,
-            [FromBody] AssignTechnicianDto dto)
+            AssignTechnicianDto dto)
         {
-            var result = await _assignValidator.ValidateAsync(dto);
+            var validation = await _assignValidator.ValidateAsync(dto);
 
-            if (!result.IsValid)
+            if (!validation.IsValid)
             {
                 return BadRequest(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = result.Errors.First().ErrorMessage
+                    Message = validation.Errors.First().ErrorMessage,
+                    Data = false
                 });
             }
 
             var request = await _context.ServiceRequests
-                .FirstOrDefaultAsync(r =>
-                    r.RequestId == id &&
-                    !r.IsDeleted);
+                .FirstOrDefaultAsync(r => r.RequestId == id);
 
             if (request == null)
             {
                 return NotFound(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Service request not found."
+                    Message = "Service request not found.",
+                    Data = false
                 });
             }
 
             var technician = await _context.Users
                 .FirstOrDefaultAsync(u =>
                     u.UserId == dto.AssigneeUserId &&
-                    !u.IsDeleted &&
                     u.Status == UserStatus.Active &&
                     u.Role == UserRole.Technician);
 
@@ -538,32 +471,28 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Invalid or inactive technician."
+                    Message = "Invalid or inactive technician.",
+                    Data = false
                 });
             }
 
+            var updatedAt = DateTime.UtcNow;
+
             request.AssigneeUserId = technician.UserId;
-            request.UpdatedAt = DateTime.UtcNow;
+            request.UpdatedAt = updatedAt;
 
-            _context.ServiceRequestTimeline.Add(new ServiceRequestTimeline
-            {
-                RequestId = request.RequestId,
-                StatusName = "Assigned",
-                ChangedByUserId = request.RequesterUserId,
-                ChangedAt = DateTime.UtcNow,
-                Note = $"Request assigned to {technician.FullName}."
-            });
+            AddTimeline(
+                request,
+                RequestStatusNames.Assigned,
+                request.RequesterUserId,
+                updatedAt,
+                $"Request assigned to {technician.FullName}.");
 
-            _context.AuditLogs.Add(new AuditLog
-            {
-                ActorUserId = request.RequesterUserId,
-                Action = "Assign",
-                TargetType = "ServiceRequest",
-                TargetId = request.RequestId.ToString(),
-                TargetDisplay = request.RequestNumber,
-                Detail = $"Request assigned to technician {technician.FullName}.",
-                CreatedAt = DateTime.UtcNow
-            });
+            AddRequestAuditLog(
+                request,
+                "Assign",
+                $"Request assigned to technician {technician.FullName}.",
+                updatedAt);
 
             await _context.SaveChangesAsync();
 
@@ -579,22 +508,21 @@ namespace ServiceRequestManagementSystem.API.Controllers
         public async Task<ActionResult<ApiResponseDto<bool>>> CancelRequest(int id)
         {
             var request = await _context.ServiceRequests
-                .FirstOrDefaultAsync(r =>
-                    r.RequestId == id &&
-                    !r.IsDeleted);
+                .FirstOrDefaultAsync(r => r.RequestId == id);
 
             if (request == null)
             {
                 return NotFound(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Service request not found."
+                    Message = "Service request not found.",
+                    Data = false
                 });
             }
 
             var status = await _context.ServiceRequestStatuses
                 .FirstOrDefaultAsync(s =>
-                    s.StatusName == "Cancelled" &&
+                    s.StatusName == RequestStatusNames.Cancelled &&
                     s.IsActive);
 
             if (status == null)
@@ -602,32 +530,29 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Cancelled status was not found."
+                    Message = "Cancelled status was not found.",
+                    Data = false
                 });
             }
 
+            var updatedAt = DateTime.UtcNow;
+
             request.StatusId = status.StatusId;
-            request.UpdatedAt = DateTime.UtcNow;
+            request.UpdatedAt = updatedAt;
+            request.ResolvedAt = null;
 
-            _context.ServiceRequestTimeline.Add(new ServiceRequestTimeline
-            {
-                RequestId = request.RequestId,
-                StatusName = status.StatusName,
-                ChangedByUserId = request.RequesterUserId,
-                ChangedAt = DateTime.UtcNow,
-                Note = "Service request cancelled."
-            });
+            AddTimeline(
+                request,
+                status.StatusName,
+                request.RequesterUserId,
+                updatedAt,
+                "Service request cancelled.");
 
-            _context.AuditLogs.Add(new AuditLog
-            {
-                ActorUserId = request.RequesterUserId,
-                Action = "Cancel",
-                TargetType = "ServiceRequest",
-                TargetId = request.RequestId.ToString(),
-                TargetDisplay = request.RequestNumber,
-                Detail = $"Service request {request.RequestNumber} cancelled.",
-                CreatedAt = DateTime.UtcNow
-            });
+            AddRequestAuditLog(
+                request,
+                "Cancel",
+                $"Service request {request.RequestNumber} cancelled.",
+                updatedAt);
 
             await _context.SaveChangesAsync();
 
@@ -643,22 +568,21 @@ namespace ServiceRequestManagementSystem.API.Controllers
         public async Task<ActionResult<ApiResponseDto<bool>>> ReopenRequest(int id)
         {
             var request = await _context.ServiceRequests
-                .FirstOrDefaultAsync(r =>
-                    r.RequestId == id &&
-                    !r.IsDeleted);
+                .FirstOrDefaultAsync(r => r.RequestId == id);
 
             if (request == null)
             {
                 return NotFound(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Service request not found."
+                    Message = "Service request not found.",
+                    Data = false
                 });
             }
 
             var status = await _context.ServiceRequestStatuses
                 .FirstOrDefaultAsync(s =>
-                    s.StatusName == "Open" &&
+                    s.StatusName == RequestStatusNames.Open &&
                     s.IsActive);
 
             if (status == null)
@@ -666,32 +590,29 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Open status was not found."
+                    Message = "Open status was not found.",
+                    Data = false
                 });
             }
 
+            var updatedAt = DateTime.UtcNow;
+
             request.StatusId = status.StatusId;
-            request.UpdatedAt = DateTime.UtcNow;
+            request.UpdatedAt = updatedAt;
+            request.ResolvedAt = null;
 
-            _context.ServiceRequestTimeline.Add(new ServiceRequestTimeline
-            {
-                RequestId = request.RequestId,
-                StatusName = status.StatusName,
-                ChangedByUserId = request.RequesterUserId,
-                ChangedAt = DateTime.UtcNow,
-                Note = "Service request reopened."
-            });
+            AddTimeline(
+                request,
+                status.StatusName,
+                request.RequesterUserId,
+                updatedAt,
+                "Service request reopened.");
 
-            _context.AuditLogs.Add(new AuditLog
-            {
-                ActorUserId = request.RequesterUserId,
-                Action = "Reopen",
-                TargetType = "ServiceRequest",
-                TargetId = request.RequestId.ToString(),
-                TargetDisplay = request.RequestNumber,
-                Detail = $"Service request {request.RequestNumber} reopened.",
-                CreatedAt = DateTime.UtcNow
-            });
+            AddRequestAuditLog(
+                request,
+                "Reopen",
+                $"Service request {request.RequestNumber} reopened.",
+                updatedAt);
 
             await _context.SaveChangesAsync();
 
@@ -704,26 +625,25 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpGet("{id}/replies")]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceRequestReplyResponseDto>>>> GetReplies(int id)
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceRequestReplyResponseDto>>>> GetReplies(
+            int id)
         {
             var requestExists = await _context.ServiceRequests
-                .AnyAsync(r =>
-                    r.RequestId == id &&
-                    !r.IsDeleted);
+                .AnyAsync(r => r.RequestId == id);
 
             if (!requestExists)
             {
                 return NotFound(new ApiResponseDto<IEnumerable<ServiceRequestReplyResponseDto>>
                 {
                     Success = false,
-                    Message = "Service request not found."
+                    Message = "Service request not found.",
+                    Data = null
                 });
             }
 
             var replies = await _context.ServiceRequestReplies
+                .AsNoTracking()
                 .Where(r => r.RequestId == id)
-                .Include(r => r.Author)
-                .Include(r => r.StatusTransition)
                 .OrderBy(r => r.CreatedAt)
                 .Select(r => new ServiceRequestReplyResponseDto
                 {
@@ -732,7 +652,9 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     Role = r.Author.Role.ToString(),
                     Message = r.Message,
                     CreatedAt = r.CreatedAt,
-                    StatusTransition = r.StatusTransition != null ? r.StatusTransition.StatusName : null
+                    StatusTransition = r.StatusTransition != null
+                        ? r.StatusTransition.StatusName
+                        : null
                 })
                 .ToListAsync();
 
@@ -747,30 +669,30 @@ namespace ServiceRequestManagementSystem.API.Controllers
         [HttpPost("{id}/replies")]
         public async Task<ActionResult<ApiResponseDto<ServiceRequestReplyResponseDto>>> PostReply(
             int id,
-            [FromBody] CreateReplyDto dto)
+            CreateReplyDto dto)
         {
-            var result = await _replyValidator.ValidateAsync(dto);
+            var validation = await _replyValidator.ValidateAsync(dto);
 
-            if (!result.IsValid)
+            if (!validation.IsValid)
             {
                 return BadRequest(new ApiResponseDto<ServiceRequestReplyResponseDto>
                 {
                     Success = false,
-                    Message = result.Errors.First().ErrorMessage
+                    Message = validation.Errors.First().ErrorMessage,
+                    Data = null
                 });
             }
 
             var request = await _context.ServiceRequests
-                .FirstOrDefaultAsync(r =>
-                    r.RequestId == id &&
-                    !r.IsDeleted);
+                .FirstOrDefaultAsync(r => r.RequestId == id);
 
             if (request == null)
             {
                 return NotFound(new ApiResponseDto<ServiceRequestReplyResponseDto>
                 {
                     Success = false,
-                    Message = "Service request not found."
+                    Message = "Service request not found.",
+                    Data = null
                 });
             }
 
@@ -786,14 +708,15 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     return BadRequest(new ApiResponseDto<ServiceRequestReplyResponseDto>
                     {
                         Success = false,
-                        Message = "Invalid status transition."
+                        Message = "Invalid status transition.",
+                        Data = null
                     });
                 }
             }
 
             var author = await _context.Users
                 .FirstOrDefaultAsync(u =>
-                    !u.IsDeleted &&
+                    u.UserId == dto.AuthorUserId &&
                     u.Status == UserStatus.Active);
 
             if (author == null)
@@ -801,7 +724,8 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<ServiceRequestReplyResponseDto>
                 {
                     Success = false,
-                    Message = "No active user is available to post the reply."
+                    Message = "No active user is available to post the reply.",
+                    Data = null
                 });
             }
 
@@ -809,7 +733,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
             {
                 RequestId = request.RequestId,
                 AuthorUserId = author.UserId,
-                Message = dto.Message,
+                Message = dto.Message.Trim(),
                 StatusTransitionId = dto.StatusTransitionId,
                 CreatedAt = DateTime.UtcNow
             };
@@ -818,11 +742,38 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             if (dto.StatusTransitionId.HasValue)
             {
+                var newStatus = await _context.ServiceRequestStatuses
+                    .FirstOrDefaultAsync(s =>
+                        s.StatusId == dto.StatusTransitionId.Value &&
+                        s.IsActive);
+
+                var updatedAt = DateTime.UtcNow;
+
                 request.StatusId = dto.StatusTransitionId.Value;
-                request.UpdatedAt = DateTime.UtcNow;
+                request.UpdatedAt = updatedAt;
+                request.ResolvedAt = newStatus?.StatusName == RequestStatusNames.Resolved
+                    ? request.ResolvedAt ?? updatedAt
+                    : null;
+
+                if (newStatus != null)
+                {
+                    AddTimeline(
+                        request,
+                        newStatus.StatusName,
+                        author.UserId,
+                        updatedAt,
+                        $"Status updated to {newStatus.StatusName} through reply.");
+                }
             }
 
             await _context.SaveChangesAsync();
+
+            var statusTransitionName = dto.StatusTransitionId.HasValue
+                ? await _context.ServiceRequestStatuses
+                    .Where(s => s.StatusId == dto.StatusTransitionId.Value)
+                    .Select(s => s.StatusName)
+                    .FirstOrDefaultAsync()
+                : null;
 
             var response = new ServiceRequestReplyResponseDto
             {
@@ -830,7 +781,8 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Author = author.FullName,
                 Role = author.Role.ToString(),
                 Message = reply.Message,
-                CreatedAt = reply.CreatedAt
+                CreatedAt = reply.CreatedAt,
+                StatusTransition = statusTransitionName
             };
 
             return Ok(new ApiResponseDto<ServiceRequestReplyResponseDto>
@@ -842,25 +794,25 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpGet("{id}/timeline")]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceRequestTimelineResponseDto>>>> GetTimeline(int id)
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<ServiceRequestTimelineResponseDto>>>> GetTimeline(
+            int id)
         {
             var requestExists = await _context.ServiceRequests
-                .AnyAsync(r =>
-                    r.RequestId == id &&
-                    !r.IsDeleted);
+                .AnyAsync(r => r.RequestId == id);
 
             if (!requestExists)
             {
                 return NotFound(new ApiResponseDto<IEnumerable<ServiceRequestTimelineResponseDto>>
                 {
                     Success = false,
-                    Message = "Service request not found."
+                    Message = "Service request not found.",
+                    Data = null
                 });
             }
 
             var timeline = await _context.ServiceRequestTimeline
+                .AsNoTracking()
                 .Where(t => t.RequestId == id)
-                .Include(t => t.ChangedBy)
                 .OrderBy(t => t.ChangedAt)
                 .Select(t => new ServiceRequestTimelineResponseDto
                 {
@@ -884,28 +836,29 @@ namespace ServiceRequestManagementSystem.API.Controllers
         public async Task<ActionResult<ApiResponseDto<ServiceRequestAttachmentResponseDto>>> UploadAttachment(
             [FromForm] IFormFile file,
             [FromForm] int requestId,
-            [FromForm] int? replyId)
+            [FromForm] int? replyId,
+            [FromForm] int uploadedByUserId)
         {
             if (file == null || file.Length == 0)
             {
                 return BadRequest(new ApiResponseDto<ServiceRequestAttachmentResponseDto>
                 {
                     Success = false,
-                    Message = "No file uploaded."
+                    Message = "No file uploaded.",
+                    Data = null
                 });
             }
 
             var requestExists = await _context.ServiceRequests
-                .AnyAsync(r =>
-                    r.RequestId == requestId &&
-                    !r.IsDeleted);
+                .AnyAsync(r => r.RequestId == requestId);
 
             if (!requestExists)
             {
                 return NotFound(new ApiResponseDto<ServiceRequestAttachmentResponseDto>
                 {
                     Success = false,
-                    Message = "Service request not found."
+                    Message = "Service request not found.",
+                    Data = null
                 });
             }
 
@@ -921,14 +874,15 @@ namespace ServiceRequestManagementSystem.API.Controllers
                     return BadRequest(new ApiResponseDto<ServiceRequestAttachmentResponseDto>
                     {
                         Success = false,
-                        Message = "Reply does not belong to the selected service request."
+                        Message = "Reply does not belong to the selected service request.",
+                        Data = null
                     });
                 }
             }
 
             var uploader = await _context.Users
                 .FirstOrDefaultAsync(u =>
-                    !u.IsDeleted &&
+                    u.UserId == uploadedByUserId &&
                     u.Status == UserStatus.Active);
 
             if (uploader == null)
@@ -936,13 +890,69 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<ServiceRequestAttachmentResponseDto>
                 {
                     Success = false,
-                    Message = "No active user is available to upload the attachment."
+                    Message = "No active user is available to upload the attachment.",
+                    Data = null
+                });
+            }
+
+            const long maxFileSize = 10 * 1024 * 1024;
+
+            if (file.Length > maxFileSize)
+            {
+                return BadRequest(new ApiResponseDto<ServiceRequestAttachmentResponseDto>
+                {
+                    Success = false,
+                    Message = "File size cannot exceed 10 MB.",
+                    Data = null
+                });
+            }
+
+            var allowedExtensions = new[]
+            {
+                ".pdf",
+                ".doc",
+                ".docx",
+                ".xls",
+                ".xlsx",
+                ".png",
+                ".jpg",
+                ".jpeg"
+            };
+
+            var extension = Path.GetExtension(file.FileName)
+                .ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest(new ApiResponseDto<ServiceRequestAttachmentResponseDto>
+                {
+                    Success = false,
+                    Message = "File type is not supported.",
+                    Data = null
                 });
             }
 
             var fileSizeKb = (int)Math.Ceiling(file.Length / 1024.0);
-            var extension = Path.GetExtension(file.FileName);
             var savedFileName = $"{Guid.NewGuid():N}{extension}";
+
+            var uploadsFolder = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "uploads");
+
+            Directory.CreateDirectory(uploadsFolder);
+
+            var filePath = Path.Combine(
+                uploadsFolder,
+                savedFileName);
+
+            await using (var stream = new FileStream(
+                filePath,
+                FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
             var fileUrl = $"/uploads/{savedFileName}";
 
             var attachment = new ServiceRequestAttachment
@@ -957,6 +967,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
             };
 
             _context.ServiceRequestAttachments.Add(attachment);
+
             await _context.SaveChangesAsync();
 
             var response = new ServiceRequestAttachmentResponseDto
@@ -971,8 +982,43 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<ServiceRequestAttachmentResponseDto>
             {
                 Success = true,
-                Message = "Attachment metadata uploaded successfully.",
+                Message = "Attachment uploaded successfully.",
                 Data = response
+            });
+        }
+
+        private void AddTimeline(
+            ServiceRequest request,
+            string statusName,
+            int changedByUserId,
+            DateTime changedAt,
+            string note)
+        {
+            _context.ServiceRequestTimeline.Add(new ServiceRequestTimeline
+            {
+                RequestId = request.RequestId,
+                StatusName = statusName,
+                ChangedByUserId = changedByUserId,
+                ChangedAt = changedAt,
+                Note = note
+            });
+        }
+
+        private void AddRequestAuditLog(
+            ServiceRequest request,
+            string action,
+            string detail,
+            DateTime createdAt)
+        {
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = null,
+                Action = action,
+                TargetType = "ServiceRequest",
+                TargetId = request.RequestId.ToString(),
+                TargetDisplay = request.RequestNumber,
+                Detail = detail,
+                CreatedAt = createdAt
             });
         }
     }

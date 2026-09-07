@@ -7,6 +7,10 @@ namespace ServiceRequestManagementSystem.API.Validator
     {
         public CreateServiceRequestDtoValidator()
         {
+            RuleFor(x => x.RequesterUserId)
+                .GreaterThan(0)
+                .WithMessage("Valid requester user ID is required.");
+
             RuleFor(x => x.Title)
                 .NotEmpty()
                 .WithMessage("Request title is required.")
@@ -46,8 +50,6 @@ namespace ServiceRequestManagementSystem.API.Validator
                 .WithMessage("Valid status ID is required.");
 
             RuleFor(x => x.Note)
-                .NotEmpty()
-                .WithMessage("Status update note is required.")
                 .MaximumLength(500)
                 .WithMessage("Note cannot exceed 500 characters.");
         }
@@ -67,14 +69,20 @@ namespace ServiceRequestManagementSystem.API.Validator
     {
         public CreateReplyDtoValidator()
         {
+            RuleFor(x => x.AuthorUserId)
+                .GreaterThan(0)
+                .WithMessage("Valid author user ID is required.");
+
             RuleFor(x => x.Message)
                 .NotEmpty()
-                .WithMessage("Reply message content cannot be empty.");
+                .WithMessage("Reply message content cannot be empty.")
+                .MaximumLength(2000)
+                .WithMessage("Reply message cannot exceed 2000 characters.");
 
             RuleFor(x => x.StatusTransitionId)
                 .GreaterThan(0)
                 .When(x => x.StatusTransitionId.HasValue)
-                .WithMessage("Status transition ID must be greater than 0.");
+                .WithMessage("Status ID must be greater than 0.");
         }
     }
 }

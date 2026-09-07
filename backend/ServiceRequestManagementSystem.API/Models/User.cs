@@ -26,42 +26,32 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
 
         public DateTime? DeletedAt { get; set; }
 
-        public virtual Department? Department { get; set; }
+        public Department? Department { get; set; }
 
-        public virtual UserSettings? UserSettings { get; set; }
+        public UserSettings? UserSettings { get; set; }
 
-        public virtual ICollection<DepartmentPersonnel> DepartmentPersonnels { get; set; }
-            = new List<DepartmentPersonnel>();
+        public ICollection<DepartmentPersonnel> DepartmentPersonnels { get; set; } = new List<DepartmentPersonnel>();
 
-        public virtual ICollection<ServiceRequest> RequestedRequests { get; set; }
-            = new List<ServiceRequest>();
+        public ICollection<ServiceRequest> RequestedRequests { get; set; } = new List<ServiceRequest>();
 
-        public virtual ICollection<ServiceRequest> AssignedRequests { get; set; }
-            = new List<ServiceRequest>();
+        public ICollection<ServiceRequest> AssignedRequests { get; set; } = new List<ServiceRequest>();
 
-        public virtual ICollection<ServiceRequestReply> Replies { get; set; }
-            = new List<ServiceRequestReply>();
+        public ICollection<ServiceRequestReply> Replies { get; set; } = new List<ServiceRequestReply>();
 
-        public virtual ICollection<ServiceRequestTimeline> TimelineEntries { get; set; }
-            = new List<ServiceRequestTimeline>();
+        public ICollection<ServiceRequestTimeline> TimelineEntries { get; set; } = new List<ServiceRequestTimeline>();
 
-        public virtual ICollection<ServiceRequestAttachment> UploadedAttachments { get; set; }
-            = new List<ServiceRequestAttachment>();
+        public ICollection<ServiceRequestAttachment> UploadedAttachments { get; set; } = new List<ServiceRequestAttachment>();
 
-        public virtual ICollection<Approval> DecidedApprovals { get; set; }
-            = new List<Approval>();
+        public ICollection<Approval> DecidedApprovals { get; set; } = new List<Approval>();
 
-        public virtual ICollection<Asset> AssignedAssets { get; set; }
-            = new List<Asset>();
+        public ICollection<Asset> AssignedAssets { get; set; } = new List<Asset>();
 
-        public virtual ICollection<Notification> Notifications { get; set; }
-            = new List<Notification>();
+        public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
-        public virtual ICollection<AuditLog> AuditLogs { get; set; }
-            = new List<AuditLog>();
+        public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
     }
 }

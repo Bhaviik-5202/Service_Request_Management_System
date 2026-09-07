@@ -31,6 +31,8 @@ namespace ServiceRequestManagementSystem.API.DTOs.Approvals
 
     public class ApprovalDecisionDto
     {
+        public int DecidedByUserId { get; set; }
+
         public ApprovalStatus Decision { get; set; }
 
         public string? Remarks { get; set; }

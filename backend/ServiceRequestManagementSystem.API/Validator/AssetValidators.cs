@@ -28,17 +28,15 @@ namespace ServiceRequestManagementSystem.API.Validator
             RuleFor(x => x.SerialNumber)
                 .NotEmpty()
                 .WithMessage("Serial number is required.")
-                .MaximumLength(15)
-                .WithMessage("Serial number cannot exceed 15 characters.");
+                .MaximumLength(100)
+                .WithMessage("Serial number cannot exceed 100 characters.");
 
             RuleFor(x => x.DepartmentId)
                 .GreaterThan(0)
-                .When(x => x.DepartmentId.HasValue)
                 .WithMessage("Department ID must be greater than 0.");
 
             RuleFor(x => x.AssignedToUserId)
                 .GreaterThan(0)
-                .When(x => x.AssignedToUserId.HasValue)
                 .WithMessage("Assigned user ID must be greater than 0.");
 
             RuleFor(x => x.Status)
@@ -79,12 +77,10 @@ namespace ServiceRequestManagementSystem.API.Validator
 
             RuleFor(x => x.DepartmentId)
                 .GreaterThan(0)
-                .When(x => x.DepartmentId.HasValue)
                 .WithMessage("Department ID must be greater than 0.");
 
             RuleFor(x => x.AssignedToUserId)
                 .GreaterThan(0)
-                .When(x => x.AssignedToUserId.HasValue)
                 .WithMessage("Assigned user ID must be greater than 0.");
 
             RuleFor(x => x.Status)
@@ -104,6 +100,16 @@ namespace ServiceRequestManagementSystem.API.Validator
             RuleFor(x => x.BookValue)
                 .GreaterThanOrEqualTo(0)
                 .WithMessage("Book value cannot be negative.");
+        }
+    }
+
+    public class AssignAssetDtoValidator : AbstractValidator<AssignAssetDto>
+    {
+        public AssignAssetDtoValidator()
+        {
+            RuleFor(x => x.AssignedToUserId)
+                .GreaterThan(0)
+                .WithMessage("Assigned user ID must be greater than 0.");
         }
     }
 }

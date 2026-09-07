@@ -16,14 +16,12 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
 
         public DateTime? DeletedAt { get; set; }
 
-        public virtual ICollection<RequestType> RequestTypes { get; set; }
-            = new List<RequestType>();
+        public ICollection<RequestType> RequestTypes { get; set; } = new List<RequestType>();
 
-        public virtual ICollection<ServiceRequest> ServiceRequests { get; set; }
-            = new List<ServiceRequest>();
+        public ICollection<ServiceRequest> ServiceRequests { get; set; } = new List<ServiceRequest>();
     }
 }

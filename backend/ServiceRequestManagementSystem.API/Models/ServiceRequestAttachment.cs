@@ -18,10 +18,10 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual ServiceRequest? ServiceRequest { get; set; }
+        public ServiceRequest? ServiceRequest { get; set; }
 
-        public virtual ServiceRequestReply? Reply { get; set; }
+        public ServiceRequestReply? Reply { get; set; }
 
-        public virtual User? UploadedBy { get; set; }
+        public User? UploadedBy { get; set; }
     }
 }

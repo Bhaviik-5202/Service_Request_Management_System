@@ -11,37 +11,37 @@ namespace ServiceRequestManagementSystem.API.Data
         {
         }
 
-        public DbSet<User> Users { get; set; } = null!;
+        public DbSet<User> Users => Set<User>();
 
-        public DbSet<UserSettings> UserSettings { get; set; } = null!;
+        public DbSet<UserSettings> UserSettings => Set<UserSettings>();
 
-        public DbSet<Department> Departments { get; set; } = null!;
+        public DbSet<Department> Departments => Set<Department>();
 
-        public DbSet<DepartmentPersonnel> DepartmentPersonnel { get; set; } = null!;
+        public DbSet<DepartmentPersonnel> DepartmentPersonnel => Set<DepartmentPersonnel>();
 
-        public DbSet<ServiceType> ServiceTypes { get; set; } = null!;
+        public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();
 
-        public DbSet<RequestType> RequestTypes { get; set; } = null!;
+        public DbSet<RequestType> RequestTypes => Set<RequestType>();
 
-        public DbSet<RequestTypeTechnicianMapping> RequestTypeTechnicianMappings { get; set; } = null!;
+        public DbSet<RequestTypeTechnicianMapping> RequestTypeTechnicianMappings => Set<RequestTypeTechnicianMapping>();
 
-        public DbSet<ServiceRequestStatus> ServiceRequestStatuses { get; set; } = null!;
+        public DbSet<ServiceRequestStatus> ServiceRequestStatuses => Set<ServiceRequestStatus>();
 
-        public DbSet<ServiceRequest> ServiceRequests { get; set; } = null!;
+        public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
 
-        public DbSet<ServiceRequestReply> ServiceRequestReplies { get; set; } = null!;
+        public DbSet<ServiceRequestReply> ServiceRequestReplies => Set<ServiceRequestReply>();
 
-        public DbSet<ServiceRequestTimeline> ServiceRequestTimeline { get; set; } = null!;
+        public DbSet<ServiceRequestTimeline> ServiceRequestTimeline => Set<ServiceRequestTimeline>();
 
-        public DbSet<ServiceRequestAttachment> ServiceRequestAttachments { get; set; } = null!;
+        public DbSet<ServiceRequestAttachment> ServiceRequestAttachments => Set<ServiceRequestAttachment>();
 
-        public DbSet<Approval> Approvals { get; set; } = null!;
+        public DbSet<Approval> Approvals => Set<Approval>();
 
-        public DbSet<Asset> Assets { get; set; } = null!;
+        public DbSet<Asset> Assets => Set<Asset>();
 
-        public DbSet<Notification> Notifications { get; set; } = null!;
+        public DbSet<Notification> Notifications => Set<Notification>();
 
-        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -384,6 +384,9 @@ namespace ServiceRequestManagementSystem.API.Data
 
                 entity.Property(sr => sr.UpdatedAt)
                     .IsRequired();
+
+                entity.Property(sr => sr.ResolvedAt)
+                    .IsRequired(false);
 
                 entity.Property(sr => sr.IsDeleted)
                     .IsRequired();

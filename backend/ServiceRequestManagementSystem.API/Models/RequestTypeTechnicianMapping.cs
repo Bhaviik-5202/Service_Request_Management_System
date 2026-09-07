@@ -14,12 +14,12 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
 
         public DateTime? DeletedAt { get; set; }
 
-        public virtual RequestType? RequestType { get; set; }
+        public RequestType? RequestType { get; set; }
 
-        public virtual DepartmentPersonnel? DepartmentPersonnel { get; set; }
+        public DepartmentPersonnel? DepartmentPersonnel { get; set; }
     }
 }

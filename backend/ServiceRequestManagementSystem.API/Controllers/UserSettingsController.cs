@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Data;
@@ -12,16 +13,22 @@ namespace ServiceRequestManagementSystem.API.Controllers
     public class UserSettingsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IValidator<UserSettingsDto> _validator;
 
-        public UserSettingsController(AppDbContext context)
+        public UserSettingsController(
+            AppDbContext context,
+            IValidator<UserSettingsDto> validator)
         {
             _context = context;
+            _validator = validator;
         }
 
         [HttpGet("{userId}")]
-        public async Task<ActionResult<ApiResponseDto<UserSettingsDto>>> GetSettings(int userId)
+        public async Task<ActionResult<ApiResponseDto<UserSettingsDto>>> GetSettings(
+            int userId)
         {
             var settings = await _context.UserSettings
+                .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.UserId == userId);
 
             if (settings == null)
@@ -29,42 +36,61 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return NotFound(new ApiResponseDto<UserSettingsDto>
                 {
                     Success = false,
-                    Message = "User settings not found."
+                    Message = "User settings not found.",
+                    Data = null
                 });
             }
+
+            var data = new UserSettingsDto
+            {
+                UserId = settings.UserId,
+                Theme = settings.Theme,
+                TwoFactorEnabled = settings.TwoFactorEnabled,
+                NotifyRequestUpdates = settings.NotifyRequestUpdates,
+                NotifyApprovalAlerts = settings.NotifyApprovalAlerts,
+                NotifySLAWarnings = settings.NotifySLAWarnings,
+                NotifyAssetEvents = settings.NotifyAssetEvents,
+                NotifyEmailDigest = settings.NotifyEmailDigest
+            };
 
             return Ok(new ApiResponseDto<UserSettingsDto>
             {
                 Success = true,
                 Message = "User settings fetched successfully.",
-                Data = new UserSettingsDto
-                {
-                    UserId = settings.UserId,
-                    Theme = settings.Theme,
-                    TwoFactorEnabled = settings.TwoFactorEnabled,
-                    NotifyRequestUpdates = settings.NotifyRequestUpdates,
-                    NotifyApprovalAlerts = settings.NotifyApprovalAlerts,
-                    NotifySLAWarnings = settings.NotifySLAWarnings,
-                    NotifyAssetEvents = settings.NotifyAssetEvents,
-                    NotifyEmailDigest = settings.NotifyEmailDigest
-                }
+                Data = data
             });
         }
 
         [HttpPut("{userId}")]
         public async Task<ActionResult<ApiResponseDto<UserSettingsDto>>> UpdateSettings(
             int userId,
-            [FromBody] UserSettingsDto dto)
+            UserSettingsDto dto)
         {
+            dto.UserId = userId;
+
+            var validation = await _validator.ValidateAsync(dto);
+
+            if (!validation.IsValid)
+            {
+                return BadRequest(new ApiResponseDto<UserSettingsDto>
+                {
+                    Success = false,
+                    Message = validation.Errors.First().ErrorMessage,
+                    Data = null
+                });
+            }
+
             var userExists = await _context.Users
-                .AnyAsync(u => u.UserId == userId && !u.IsDeleted);
+                .AsNoTracking()
+                .AnyAsync(u => u.UserId == userId);
 
             if (!userExists)
             {
                 return NotFound(new ApiResponseDto<UserSettingsDto>
                 {
                     Success = false,
-                    Message = "User not found."
+                    Message = "User not found.",
+                    Data = null
                 });
             }
 
@@ -81,7 +107,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 _context.UserSettings.Add(settings);
             }
 
-            settings.Theme = dto.Theme;
+            settings.Theme = dto.Theme.Trim().ToLowerInvariant();
             settings.TwoFactorEnabled = dto.TwoFactorEnabled;
             settings.NotifyRequestUpdates = dto.NotifyRequestUpdates;
             settings.NotifyApprovalAlerts = dto.NotifyApprovalAlerts;
@@ -92,7 +118,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             await _context.SaveChangesAsync();
 
-            dto.UserId = userId;
+            dto.Theme = settings.Theme;
 
             return Ok(new ApiResponseDto<UserSettingsDto>
             {

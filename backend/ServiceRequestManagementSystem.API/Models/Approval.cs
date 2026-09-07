@@ -18,8 +18,8 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual ServiceRequest? ServiceRequest { get; set; }
+        public ServiceRequest? ServiceRequest { get; set; }
 
-        public virtual User? DecidedBy { get; set; }
+        public User? DecidedBy { get; set; }
     }
 }

@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Data;
@@ -13,142 +14,75 @@ namespace ServiceRequestManagementSystem.API.Controllers
     public class ApprovalsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IValidator<ApprovalDecisionDto> _decisionValidator;
 
-        public ApprovalsController(AppDbContext context)
+        public ApprovalsController(
+            AppDbContext context,
+            IValidator<ApprovalDecisionDto> decisionValidator)
         {
             _context = context;
+            _decisionValidator = decisionValidator;
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<ApprovalResponseDto>>>> GetApprovals(
-            [FromQuery] ApprovalStatus? status,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<ApprovalResponseDto>>>> GetApprovals()
         {
-            if (pageNumber < 1)
-                pageNumber = 1;
-
-            if (pageSize < 1)
-                pageSize = 10;
-
-            if (pageSize > 100)
-                pageSize = 100;
-
-            var query = _context.Approvals
-                .Include(a => a.ServiceRequest)
-                    .ThenInclude(r => r!.Requester)
-                .Include(a => a.ServiceRequest)
-                    .ThenInclude(r => r!.Department)
-                .Include(a => a.DecidedBy)
-                .AsQueryable();
-
-            if (status.HasValue)
-                query = query.Where(a => a.Status == status.Value);
-
-            var totalRecords = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
-
-            var approvals = await query
+            var approvals = await _context.Approvals
+                .AsNoTracking()
                 .OrderByDescending(a => a.SubmittedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(a => new ApprovalResponseDto
-                {
-                    ApprovalId = a.ApprovalId,
-                    RequestId = a.RequestId,
-                    RequestNo = a.ServiceRequest!.RequestNumber,
-                    Title = a.ServiceRequest.Title,
-                    Requester = a.ServiceRequest.Requester!.FullName,
-                    Department = a.ServiceRequest.Department!.DepartmentName,
-                    Priority = a.ServiceRequest.Priority,
-                    SubmittedAt = a.SubmittedAt,
-                    Status = a.Status,
-                    DecidedBy = a.DecidedBy != null ? a.DecidedBy.FullName : null,
-                    DecidedAt = a.DecidedAt,
-                    Remarks = a.Remarks
-                })
+                .Select(ApprovalResponseSelector)
                 .ToListAsync();
 
             return Ok(new ApiResponseDto<IEnumerable<ApprovalResponseDto>>
             {
                 Success = true,
                 Message = "Approvals fetched successfully.",
-                Data = approvals,
-                Pagination = new PaginationMetadataDto
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalPages = totalPages,
-                    TotalRecords = totalRecords
-                }
+                Data = approvals
             });
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<ApiResponseDto<ApprovalResponseDto>>> GetApprovalById(int id)
+        public async Task<ActionResult<ApiResponseDto<ApprovalResponseDto>>> GetApprovalById(
+            int id)
         {
             var approval = await _context.Approvals
-                .Include(a => a.ServiceRequest)
-                    .ThenInclude(r => r!.Requester)
-                .Include(a => a.ServiceRequest)
-                    .ThenInclude(r => r!.Department)
-                .Include(a => a.DecidedBy)
-                .FirstOrDefaultAsync(a => a.ApprovalId == id);
+                .AsNoTracking()
+                .Where(a => a.ApprovalId == id)
+                .Select(ApprovalResponseSelector)
+                .FirstOrDefaultAsync();
 
             if (approval == null)
             {
                 return NotFound(new ApiResponseDto<ApprovalResponseDto>
                 {
                     Success = false,
-                    Message = "Approval not found."
+                    Message = "Approval not found.",
+                    Data = null
                 });
             }
-
-            var response = new ApprovalResponseDto
-            {
-                ApprovalId = approval.ApprovalId,
-                RequestId = approval.RequestId,
-                RequestNo = approval.ServiceRequest!.RequestNumber,
-                Title = approval.ServiceRequest.Title,
-                Requester = approval.ServiceRequest.Requester!.FullName,
-                Department = approval.ServiceRequest.Department!.DepartmentName,
-                Priority = approval.ServiceRequest.Priority,
-                SubmittedAt = approval.SubmittedAt,
-                Status = approval.Status,
-                DecidedBy = approval.DecidedBy?.FullName,
-                DecidedAt = approval.DecidedAt,
-                Remarks = approval.Remarks
-            };
 
             return Ok(new ApiResponseDto<ApprovalResponseDto>
             {
                 Success = true,
                 Message = "Approval fetched successfully.",
-                Data = response
+                Data = approval
             });
         }
 
         [HttpPut("{id}/decision")]
         public async Task<ActionResult<ApiResponseDto<bool>>> MakeDecision(
             int id,
-            [FromBody] ApprovalDecisionDto dto)
+            ApprovalDecisionDto dto)
         {
-            if (!Enum.IsDefined(typeof(ApprovalStatus), dto.Decision))
-            {
-                return BadRequest(new ApiResponseDto<bool>
-                {
-                    Success = false,
-                    Message = "Invalid approval decision."
-                });
-            }
+            var validation = await _decisionValidator.ValidateAsync(dto);
 
-            if (dto.Decision != ApprovalStatus.Approved &&
-                dto.Decision != ApprovalStatus.Rejected)
+            if (!validation.IsValid)
             {
                 return BadRequest(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Decision must be Approved or Rejected."
+                    Message = validation.Errors.First().ErrorMessage,
+                    Data = false
                 });
             }
 
@@ -161,7 +95,8 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return NotFound(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "Approval not found."
+                    Message = "Approval not found.",
+                    Data = false
                 });
             }
 
@@ -170,13 +105,14 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "This approval has already been decided."
+                    Message = "This approval has already been decided.",
+                    Data = false
                 });
             }
 
             var decidedByUser = await _context.Users
                 .FirstOrDefaultAsync(u =>
-                    !u.IsDeleted &&
+                    u.UserId == dto.DecidedByUserId &&
                     u.Status == UserStatus.Active);
 
             if (decidedByUser == null)
@@ -184,37 +120,41 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 return BadRequest(new ApiResponseDto<bool>
                 {
                     Success = false,
-                    Message = "No active user is available to make the decision."
+                    Message = "Invalid or inactive decision maker user.",
+                    Data = false
                 });
             }
 
+            var statusName = dto.Decision == ApprovalStatus.Approved
+                ? RequestStatusNames.Open
+                : RequestStatusNames.Rejected;
+
+            var requestStatus = await _context.ServiceRequestStatuses
+                .FirstOrDefaultAsync(s =>
+                    s.StatusName == statusName &&
+                    s.IsActive);
+
+            if (requestStatus == null)
+            {
+                return BadRequest(new ApiResponseDto<bool>
+                {
+                    Success = false,
+                    Message = $"Required status '{statusName}' was not found.",
+                    Data = false
+                });
+            }
+
+            var now = DateTime.UtcNow;
+
             approval.Status = dto.Decision;
             approval.DecidedByUserId = decidedByUser.UserId;
-            approval.DecidedAt = DateTime.UtcNow;
+            approval.DecidedAt = now;
             approval.Remarks = dto.Remarks;
 
             if (approval.ServiceRequest != null)
             {
-                var statusName = dto.Decision == ApprovalStatus.Approved
-                    ? "Open"
-                    : "Rejected";
-
-                var requestStatus = await _context.ServiceRequestStatuses
-                    .FirstOrDefaultAsync(s =>
-                        s.StatusName == statusName &&
-                        s.IsActive);
-
-                if (requestStatus == null)
-                {
-                    return BadRequest(new ApiResponseDto<bool>
-                    {
-                        Success = false,
-                        Message = $"Required status '{statusName}' was not found."
-                    });
-                }
-
                 approval.ServiceRequest.StatusId = requestStatus.StatusId;
-                approval.ServiceRequest.UpdatedAt = DateTime.UtcNow;
+                approval.ServiceRequest.UpdatedAt = now;
 
                 _context.ServiceRequestTimeline.Add(
                     new ServiceRequestTimeline
@@ -222,9 +162,9 @@ namespace ServiceRequestManagementSystem.API.Controllers
                         RequestId = approval.RequestId,
                         StatusName = requestStatus.StatusName,
                         ChangedByUserId = decidedByUser.UserId,
-                        ChangedAt = DateTime.UtcNow,
+                        ChangedAt = now,
                         Note = string.IsNullOrWhiteSpace(dto.Remarks)
-                            ? $"Request {dto.Decision.ToString().ToLower()}."
+                            ? $"Request {dto.Decision.ToString().ToLowerInvariant()}."
                             : dto.Remarks
                     });
             }
@@ -232,12 +172,15 @@ namespace ServiceRequestManagementSystem.API.Controllers
             _context.AuditLogs.Add(new AuditLog
             {
                 ActorUserId = decidedByUser.UserId,
-                Action = dto.Decision == ApprovalStatus.Approved ? "Approve" : "Reject",
+                Action = dto.Decision == ApprovalStatus.Approved
+                    ? "Approve"
+                    : "Reject",
                 TargetType = "Approval",
                 TargetId = approval.ApprovalId.ToString(),
                 TargetDisplay = approval.ServiceRequest?.RequestNumber,
                 Detail = $"Approval decision {dto.Decision} with remarks: {dto.Remarks}",
-                CreatedAt = DateTime.UtcNow
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                CreatedAt = now
             });
 
             await _context.SaveChangesAsync();
@@ -245,7 +188,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
             return Ok(new ApiResponseDto<bool>
             {
                 Success = true,
-                Message = $"Approval {dto.Decision.ToString().ToLower()} successfully.",
+                Message = $"Approval {dto.Decision.ToString().ToLowerInvariant()} successfully.",
                 Data = true
             });
         }
@@ -254,11 +197,8 @@ namespace ServiceRequestManagementSystem.API.Controllers
         public async Task<ActionResult<ApiResponseDto<IEnumerable<ApprovalResponseDto>>>> GetPendingApprovals()
         {
             var approvals = await _context.Approvals
+                .AsNoTracking()
                 .Where(a => a.Status == ApprovalStatus.Pending)
-                .Include(a => a.ServiceRequest)
-                    .ThenInclude(r => r!.Requester)
-                .Include(a => a.ServiceRequest)
-                    .ThenInclude(r => r!.Department)
                 .OrderBy(a => a.SubmittedAt)
                 .Select(a => new ApprovalResponseDto
                 {
@@ -284,5 +224,25 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 Data = approvals
             });
         }
+
+        private static readonly System.Linq.Expressions.Expression<
+            Func<Approval, ApprovalResponseDto>> ApprovalResponseSelector = approval =>
+            new ApprovalResponseDto
+            {
+                ApprovalId = approval.ApprovalId,
+                RequestId = approval.RequestId,
+                RequestNo = approval.ServiceRequest!.RequestNumber,
+                Title = approval.ServiceRequest.Title,
+                Requester = approval.ServiceRequest.Requester!.FullName,
+                Department = approval.ServiceRequest.Department!.DepartmentName,
+                Priority = approval.ServiceRequest.Priority,
+                SubmittedAt = approval.SubmittedAt,
+                Status = approval.Status,
+                DecidedBy = approval.DecidedBy != null
+                    ? approval.DecidedBy.FullName
+                    : null,
+                DecidedAt = approval.DecidedAt,
+                Remarks = approval.Remarks
+            };
     }
 }

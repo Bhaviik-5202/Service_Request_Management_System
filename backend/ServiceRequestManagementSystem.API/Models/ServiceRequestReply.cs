@@ -14,13 +14,12 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual ServiceRequest? ServiceRequest { get; set; }
+        public ServiceRequest? ServiceRequest { get; set; }
 
-        public virtual User? Author { get; set; }
+        public User? Author { get; set; }
 
-        public virtual ServiceRequestStatus? StatusTransition { get; set; }
+        public ServiceRequestStatus? StatusTransition { get; set; }
 
-        public virtual ICollection<ServiceRequestAttachment> Attachments { get; set; }
-            = new List<ServiceRequestAttachment>();
+        public ICollection<ServiceRequestAttachment> Attachments { get; set; } = new List<ServiceRequestAttachment>();
     }
 }
