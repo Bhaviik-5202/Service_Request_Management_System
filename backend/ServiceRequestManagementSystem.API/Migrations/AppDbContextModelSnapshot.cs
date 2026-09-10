@@ -57,7 +57,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.HasIndex("RequestId")
                         .IsUnique();
 
-                    b.ToTable("Approvals");
+                    b.ToTable("Approvals", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.Asset", b =>
@@ -132,7 +132,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.HasIndex("SerialNumber")
                         .IsUnique();
 
-                    b.ToTable("Assets");
+                    b.ToTable("Assets", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.AuditLog", b =>
@@ -178,7 +178,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasIndex("ActorUserId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.Department", b =>
@@ -223,7 +223,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.HasIndex("DepartmentCode")
                         .IsUnique();
 
-                    b.ToTable("Departments");
+                    b.ToTable("Departments", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.DepartmentPersonnel", b =>
@@ -265,7 +265,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.HasIndex("UserId", "DepartmentId")
                         .IsUnique();
 
-                    b.ToTable("DepartmentPersonnel");
+                    b.ToTable("DepartmentPersonnel", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.Notification", b =>
@@ -303,7 +303,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.RequestType", b =>
@@ -349,7 +349,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.HasIndex("ServiceTypeId", "RequestTypeName")
                         .IsUnique();
 
-                    b.ToTable("RequestTypes");
+                    b.ToTable("RequestTypes", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.RequestTypeTechnicianMapping", b =>
@@ -388,7 +388,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.HasIndex("RequestTypeId", "DepartmentPersonnelId")
                         .IsUnique();
 
-                    b.ToTable("RequestTypeTechnicianMappings");
+                    b.ToTable("RequestTypeTechnicianMappings", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.ServiceRequest", b =>
@@ -467,7 +467,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasIndex("StatusId");
 
-                    b.ToTable("ServiceRequests");
+                    b.ToTable("ServiceRequests", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.ServiceRequestAttachment", b =>
@@ -511,7 +511,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasIndex("UploadedByUserId");
 
-                    b.ToTable("ServiceRequestAttachments");
+                    b.ToTable("ServiceRequestAttachments", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.ServiceRequestReply", b =>
@@ -546,7 +546,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasIndex("StatusTransitionId");
 
-                    b.ToTable("ServiceRequestReplies");
+                    b.ToTable("ServiceRequestReplies", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.ServiceRequestStatus", b =>
@@ -581,7 +581,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.HasIndex("StatusName")
                         .IsUnique();
 
-                    b.ToTable("ServiceRequestStatuses");
+                    b.ToTable("ServiceRequestStatuses", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.ServiceRequestTimeline", b =>
@@ -617,7 +617,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasIndex("RequestId");
 
-                    b.ToTable("ServiceRequestTimeline");
+                    b.ToTable("ServiceRequestTimeline", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.ServiceType", b =>
@@ -662,7 +662,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.HasIndex("ServiceTypeCode")
                         .IsUnique();
 
-                    b.ToTable("ServiceTypes");
+                    b.ToTable("ServiceTypes", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.User", b =>
@@ -728,7 +728,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
                     b.HasIndex("EmployeeId")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.UserSettings", b =>
@@ -764,7 +764,7 @@ namespace ServiceRequestManagementSystem.API.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("UserSettings");
+                    b.ToTable("UserSettings", (string)null);
                 });
 
             modelBuilder.Entity("ServiceRequestManagementSystem.API.Models.Approval", b =>
