@@ -17,7 +17,15 @@ namespace ServiceRequestManagementSystem.API.Services
             _settings = settings.Value;
         }
 
-        public AuthResponse GenerateToken(string username, string? role = null, string? email = null, int? userId = null, string? fullName = null)
+        public AuthResponse GenerateToken(
+            string username,
+            string? role = null,
+            string? email = null,
+            int? userId = null,
+            string? fullName = null,
+            string? employeeId = null,
+            int? departmentId = null,
+            string? departmentName = null)
         {
             var claims = new List<Claim>
             {
@@ -49,9 +57,19 @@ namespace ServiceRequestManagementSystem.API.Services
                 claims.Add(new Claim("fullName", fullName));
             }
 
+            if (!string.IsNullOrWhiteSpace(employeeId))
+            {
+                claims.Add(new Claim("employeeId", employeeId));
+            }
+
+            if (departmentId.HasValue)
+            {
+                claims.Add(new Claim("departmentId", departmentId.Value.ToString()));
+            }
+
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expires = DateTime.UtcNow.AddMinutes(_settings.ExpiryMinutes > 0 ? _settings.ExpiryMinutes : 60);
+            var expires = DateTime.UtcNow.AddMinutes(_settings.ExpiryMinutes > 0 ? _settings.ExpiryMinutes : 120);
 
             var token = new JwtSecurityToken(
                 issuer: _settings.Issuer,
@@ -65,10 +83,13 @@ namespace ServiceRequestManagementSystem.API.Services
             {
                 Token = new JwtSecurityTokenHandler().WriteToken(token),
                 ExpiresAt = expires,
-                Role = role,
-                FullName = fullName,
-                Email = email,
-                UserId = userId
+                Role = role ?? string.Empty,
+                FullName = fullName ?? string.Empty,
+                Email = email ?? string.Empty,
+                UserId = userId ?? 0,
+                EmployeeId = employeeId ?? string.Empty,
+                DepartmentId = departmentId,
+                DepartmentName = departmentName
             };
         }
     }

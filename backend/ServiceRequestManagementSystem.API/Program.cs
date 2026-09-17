@@ -23,6 +23,21 @@ namespace ServiceRequestManagementSystem.API
             // Controllers
             builder.Services.AddControllers();
 
+            // CORS Configuration
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    policy.SetIsOriginAllowed(_ => true)
+                          .AllowAnyMethod()
+                          .AllowAnyHeader()
+                          .AllowCredentials();
+                });
+            });
+
+            // Password Hasher Service
+            builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+
             // JWT Settings & Token Service
             builder.Services.Configure<JwtSettings>(
                 builder.Configuration.GetSection("Jwt"));
@@ -66,7 +81,10 @@ namespace ServiceRequestManagementSystem.API
 
             var app = builder.Build();
 
-            // Scalar
+            // Enable CORS before auth
+            app.UseCors("AllowFrontend");
+
+            // Scalar API Documentation
             if (app.Environment.IsDevelopment())
             {
                 app.MapOpenApi();

@@ -64,6 +64,14 @@ namespace ServiceRequestManagementSystem.API.Data
                     .IsRequired()
                     .HasMaxLength(256);
 
+                entity.Property(u => u.PasswordHash)
+                    .IsRequired()
+                    .HasMaxLength(256);
+
+                entity.Property(u => u.PasswordSalt)
+                    .IsRequired()
+                    .HasMaxLength(256);
+
                 entity.Property(u => u.Role)
                     .HasConversion<string>()
                     .IsRequired();
@@ -129,6 +137,8 @@ namespace ServiceRequestManagementSystem.API.Data
                     .WithOne(u => u.UserSettings)
                     .HasForeignKey<UserSettings>(us => us.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasQueryFilter(us => !us.User!.IsDeleted);
             });
 
             modelBuilder.Entity<Department>(entity =>
@@ -457,6 +467,8 @@ namespace ServiceRequestManagementSystem.API.Data
                     .WithMany()
                     .HasForeignKey(r => r.StatusTransitionId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasQueryFilter(r => !r.ServiceRequest!.IsDeleted);
             });
 
             modelBuilder.Entity<ServiceRequestTimeline>(entity =>
@@ -489,6 +501,8 @@ namespace ServiceRequestManagementSystem.API.Data
                     .WithMany(u => u.TimelineEntries)
                     .HasForeignKey(t => t.ChangedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasQueryFilter(t => !t.ServiceRequest!.IsDeleted);
             });
 
             modelBuilder.Entity<ServiceRequestAttachment>(entity =>
@@ -529,6 +543,8 @@ namespace ServiceRequestManagementSystem.API.Data
                     .WithMany(u => u.UploadedAttachments)
                     .HasForeignKey(a => a.UploadedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasQueryFilter(a => !a.ServiceRequest!.IsDeleted);
             });
 
             modelBuilder.Entity<Approval>(entity =>
@@ -557,6 +573,8 @@ namespace ServiceRequestManagementSystem.API.Data
                     .WithMany(u => u.DecidedApprovals)
                     .HasForeignKey(a => a.DecidedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasQueryFilter(a => !a.ServiceRequest!.IsDeleted);
             });
 
             modelBuilder.Entity<Asset>(entity =>
@@ -650,6 +668,8 @@ namespace ServiceRequestManagementSystem.API.Data
                     .WithMany(u => u.Notifications)
                     .HasForeignKey(n => n.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasQueryFilter(n => !n.User!.IsDeleted);
             });
 
             modelBuilder.Entity<AuditLog>(entity =>

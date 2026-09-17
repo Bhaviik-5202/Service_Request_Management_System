@@ -12,6 +12,10 @@ namespace ServiceRequestManagementSystem.API.Models
 
         public string Email { get; set; } = string.Empty;
 
+        public string PasswordHash { get; set; } = string.Empty;
+
+        public string PasswordSalt { get; set; } = string.Empty;
+
         public UserRole Role { get; set; } = UserRole.Requestor;
 
         public int? DepartmentId { get; set; }

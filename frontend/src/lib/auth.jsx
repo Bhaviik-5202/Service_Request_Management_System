@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { users, syncLocalStorage, addUser, updateUser } from "@/data/mock";
+import api from "@/lib/api";
 
 const ALL = [
   "dashboard.view",
@@ -78,58 +79,96 @@ const STORAGE_KEY = "servicedesk.auth";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [role, setRoleState] = useState(null);
+  const [token, setToken] = useState(null);
   const [signedIn, setSignedIn] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   // Hydrate session on mount
   useEffect(() => {
-    try {
-      syncLocalStorage();
+    async function hydrate() {
+      try {
+        syncLocalStorage();
 
-      // Look for session in sessionStorage first (not remembered), then localStorage (remembered)
-      let raw = sessionStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        raw = localStorage.getItem(STORAGE_KEY);
-      }
+        let raw = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
 
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.signedIn) {
-          let matchedUser;
-          if (parsed.userId) {
-            matchedUser = users.find((u) => u.id === parsed.userId);
-          } else {
-            // Fallback to match default roles in seeded users list
-            const defaultEmails = {
-              Admin: "admin@gmail.com",
-              HOD: "hod@gmail.com",
-              Technician: "tech@gmail.com",
-              Requestor: "requestor@gmail.com",
-            };
-            const email = defaultEmails[parsed.role];
-            matchedUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-          }
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.signedIn) {
+            if (parsed.token) {
+              setToken(parsed.token);
+              try {
+                const res = await api.auth.me();
+                if (res?.success && res.data) {
+                  const dbUser = {
+                    id: String(res.data.userId),
+                    userId: res.data.userId,
+                    name: res.data.fullName,
+                    email: res.data.email,
+                    role: res.data.role,
+                    department: res.data.departmentName || "IT",
+                    departmentId: res.data.departmentId,
+                    phone: res.data.phone || "",
+                    avatar: res.data.fullName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase() || "US",
+                  };
+                  setUser(dbUser);
+                  setRoleState(res.data.role);
+                  setSignedIn(true);
+                  setHydrated(true);
+                  return;
+                }
+              } catch {
+                // Fall back to local cache if offline
+              }
+            }
 
-          if (matchedUser) {
-            setUser(matchedUser);
-            setRoleState(matchedUser.role);
-            setSignedIn(true);
+            let matchedUser;
+            if (parsed.userId) {
+              matchedUser = users.find((u) => u.id === parsed.userId);
+            } else {
+              const defaultEmails = {
+                Admin: "admin@gmail.com",
+                HOD: "hod@gmail.com",
+                Technician: "tech@gmail.com",
+                Requestor: "requestor@gmail.com",
+              };
+              const email = defaultEmails[parsed.role];
+              matchedUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+            }
+
+            if (matchedUser) {
+              setUser(matchedUser);
+              setRoleState(matchedUser.role);
+              setSignedIn(true);
+            }
           }
         }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
+      setHydrated(true);
     }
-    setHydrated(true);
+
+    hydrate();
+
+    const handleUnauthorized = () => {
+      signOut();
+    };
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
   }, []);
 
-  const signIn = useCallback((emailOrRole, password, remember = true) => {
+  const signIn = useCallback(async (emailOrRole, password, remember = true) => {
     syncLocalStorage();
 
     const roles = ["Admin", "HOD", "Technician", "Requestor"];
     const isRole = roles.includes(emailOrRole);
 
-    let matchedUser;
+    let email = emailOrRole;
+    let pwd = password || "admin123";
 
     if (isRole) {
       const defaultEmails = {
@@ -138,7 +177,58 @@ export function AuthProvider({ children }) {
         Technician: "tech@gmail.com",
         Requestor: "requestor@gmail.com",
       };
-      const email = defaultEmails[emailOrRole];
+      email = defaultEmails[emailOrRole];
+      pwd = "admin123";
+    }
+
+    // Try backend authentication first
+    try {
+      const res = await api.auth.login({ email, password: pwd });
+      if (res?.success && res.data?.token) {
+        const authData = res.data;
+        const loggedUser = {
+          id: String(authData.userId),
+          userId: authData.userId,
+          name: authData.fullName,
+          email: authData.email,
+          role: authData.role,
+          department: authData.departmentName || "IT",
+          departmentId: authData.departmentId,
+          avatar: authData.fullName
+            ?.split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase() || "US",
+        };
+
+        setUser(loggedUser);
+        setRoleState(authData.role);
+        setToken(authData.token);
+        setSignedIn(true);
+
+        const sessionData = {
+          userId: loggedUser.id,
+          role: loggedUser.role,
+          token: authData.token,
+          signedIn: true,
+        };
+
+        if (remember) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+          sessionStorage.removeItem(STORAGE_KEY);
+        } else {
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+          localStorage.removeItem(STORAGE_KEY);
+        }
+        return true;
+      }
+    } catch {
+      // If API server is unreachable, fall back to local store
+    }
+
+    // Local Mock fallback
+    let matchedUser;
+    if (isRole) {
       matchedUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     } else if (password) {
       matchedUser = users.find(
@@ -166,8 +256,53 @@ export function AuthProvider({ children }) {
     return false;
   }, []);
 
-  const signUp = useCallback((userData) => {
+  const signUp = useCallback(async (userData) => {
     syncLocalStorage();
+
+    // Try backend registration
+    try {
+      const res = await api.auth.register({
+        fullName: userData.name || userData.fullName,
+        email: userData.email,
+        password: userData.password || "Password@123",
+        role: userData.role || "Requestor",
+        phone: userData.phone || "",
+      });
+
+      if (res?.success && res.data?.token) {
+        const authData = res.data;
+        const newUser = {
+          id: String(authData.userId),
+          userId: authData.userId,
+          name: authData.fullName,
+          email: authData.email,
+          role: authData.role,
+          department: authData.departmentName || "IT",
+          avatar: authData.fullName
+            ?.split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase() || "US",
+        };
+
+        setUser(newUser);
+        setRoleState(newUser.role);
+        setToken(authData.token);
+        setSignedIn(true);
+
+        const sessionData = {
+          userId: newUser.id,
+          role: newUser.role,
+          token: authData.token,
+          signedIn: true,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+        sessionStorage.removeItem(STORAGE_KEY);
+        return true;
+      }
+    } catch {
+      // Fallback to local
+    }
 
     const duplicate = users.find((u) => u.email.toLowerCase() === userData.email.toLowerCase());
     if (duplicate) {
@@ -183,12 +318,10 @@ export function AuthProvider({ children }) {
     };
 
     addUser(newUser);
-
     setUser(newUser);
     setRoleState(newUser.role);
     setSignedIn(true);
 
-    // Save session (default to remember session)
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ userId: newUser.id, role: newUser.role, signedIn: true }),
@@ -201,6 +334,7 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(() => {
     setUser(null);
     setRoleState(null);
+    setToken(null);
     setSignedIn(false);
     localStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(STORAGE_KEY);
@@ -230,15 +364,14 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const can = useCallback((p) => (role ? ROLE_PERMISSIONS[role].includes(p) : false), [role]);
+  const can = useCallback((p) => (role ? ROLE_PERMISSIONS[role]?.includes(p) || false : false), [role]);
 
   const updateProfile = useCallback((updatedUserData) => {
     syncLocalStorage();
     const updatedUser = { ...user, ...updatedUserData };
     setUser(updatedUser);
 
-    const STORAGE_KEY = "servicedesk.auth";
-    const sessionData = { userId: updatedUser.id, role: updatedUser.role, signedIn: true };
+    const sessionData = { userId: updatedUser.id, role: updatedUser.role, token, signedIn: true };
     if (sessionStorage.getItem(STORAGE_KEY)) {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
     } else {
@@ -246,11 +379,11 @@ export function AuthProvider({ children }) {
     }
 
     updateUser(updatedUser);
-  }, [user]);
+  }, [user, token]);
 
   const value = useMemo(
-    () => ({ user, role, signedIn, signIn, signUp, signOut, setRole, can, updateProfile }),
-    [user, role, signedIn, signIn, signUp, signOut, setRole, can, updateProfile],
+    () => ({ user, role, token, signedIn, signIn, signUp, signOut, setRole, can, updateProfile }),
+    [user, role, token, signedIn, signIn, signUp, signOut, setRole, can, updateProfile],
   );
 
   if (!hydrated) return null;

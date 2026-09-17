@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Data;
@@ -6,32 +7,63 @@ using ServiceRequestManagementSystem.API.DTOs.Common;
 using ServiceRequestManagementSystem.API.DTOs.Users;
 using ServiceRequestManagementSystem.API.Enums;
 using ServiceRequestManagementSystem.API.Models;
+using ServiceRequestManagementSystem.API.Services;
 
 namespace ServiceRequestManagementSystem.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles ="Admin")]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
         private readonly IValidator<CreateUserDto> _createValidator;
         private readonly IValidator<UpdateUserDto> _updateValidator;
+        private readonly IPasswordHasher _passwordHasher;
 
         public UsersController(
             AppDbContext context,
             IValidator<CreateUserDto> createValidator,
-            IValidator<UpdateUserDto> updateValidator)
+            IValidator<UpdateUserDto> updateValidator,
+            IPasswordHasher passwordHasher)
         {
             _context = context;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
+            _passwordHasher = passwordHasher;
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<UserResponseDto>>>> GetUsers()
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<UserResponseDto>>>> GetUsers(
+            [FromQuery] string? search = null,
+            [FromQuery] string? role = null,
+            [FromQuery] int? departmentId = null)
         {
-            var users = await _context.Users
+            var query = _context.Users
                 .AsNoTracking()
+                .Where(u => !u.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                query = query.Where(u =>
+                    u.FullName.ToLower().Contains(s) ||
+                    u.Email.ToLower().Contains(s) ||
+                    u.EmployeeId.ToLower().Contains(s) ||
+                    (u.Phone != null && u.Phone.ToLower().Contains(s)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(role) && Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                query = query.Where(u => u.Role == userRole);
+            }
+
+            if (departmentId.HasValue)
+            {
+                query = query.Where(u => u.DepartmentId == departmentId.Value);
+            }
+
+            var users = await query
                 .OrderBy(u => u.UserId)
                 .Select(UserResponseSelector)
                 .ToListAsync();
@@ -49,7 +81,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
         {
             var user = await _context.Users
                 .AsNoTracking()
-                .Where(u => u.UserId == id)
+                .Where(u => u.UserId == id && !u.IsDeleted)
                 .Select(UserResponseSelector)
                 .FirstOrDefaultAsync();
 
@@ -72,8 +104,9 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> CreateUser(
-            CreateUserDto dto)
+            [FromBody] CreateUserDto dto)
         {
             var validationResult = await _createValidator.ValidateAsync(dto);
 
@@ -92,8 +125,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
 
             var exists = await _context.Users
                 .AnyAsync(u =>
-                    u.Email == email ||
-                    u.EmployeeId == employeeId);
+                    (u.Email == email || u.EmployeeId == employeeId) && !u.IsDeleted);
 
             if (exists)
             {
@@ -110,7 +142,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 var departmentExists = await _context.Departments
                     .AnyAsync(d =>
                         d.DepartmentId == dto.DepartmentId.Value &&
-                        d.IsActive);
+                        d.IsActive && !d.IsDeleted);
 
                 if (!departmentExists)
                 {
@@ -124,17 +156,18 @@ namespace ServiceRequestManagementSystem.API.Controllers
             }
 
             var now = DateTime.UtcNow;
+            var (hash, salt) = _passwordHasher.HashPassword("Password@123");
 
             var user = new User
             {
                 EmployeeId = employeeId,
                 FullName = dto.FullName.Trim(),
                 Email = email,
+                PasswordHash = hash,
+                PasswordSalt = salt,
                 Role = dto.Role,
                 DepartmentId = dto.DepartmentId,
-                Phone = string.IsNullOrWhiteSpace(dto.Phone)
-                    ? null
-                    : dto.Phone.Trim(),
+                Phone = string.IsNullOrWhiteSpace(dto.Phone) ? null : dto.Phone.Trim(),
                 Status = UserStatus.Active,
                 JoinedDate = now,
                 CreatedAt = now,
@@ -142,6 +175,31 @@ namespace ServiceRequestManagementSystem.API.Controllers
             };
 
             _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            // Add default user settings
+            _context.UserSettings.Add(new UserSettings
+            {
+                UserId = user.UserId,
+                Theme = "light",
+                NotifyRequestUpdates = true,
+                NotifyApprovalAlerts = true,
+                NotifySLAWarnings = true,
+                NotifyAssetEvents = false,
+                NotifyEmailDigest = false,
+                UpdatedAt = now
+            });
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = user.UserId,
+                Action = "User Created",
+                TargetType = "User",
+                TargetId = user.UserId.ToString(),
+                TargetDisplay = user.FullName,
+                CreatedAt = now
+            });
+
             await _context.SaveChangesAsync();
 
             var response = await _context.Users
@@ -162,9 +220,10 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResponseDto<UserResponseDto>>> UpdateUser(
             int id,
-            UpdateUserDto dto)
+            [FromBody] UpdateUserDto dto)
         {
             var validationResult = await _updateValidator.ValidateAsync(dto);
 
@@ -179,7 +238,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
             }
 
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.UserId == id);
+                .FirstOrDefaultAsync(u => u.UserId == id && !u.IsDeleted);
 
             if (user == null)
             {
@@ -196,7 +255,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
                 var departmentExists = await _context.Departments
                     .AnyAsync(d =>
                         d.DepartmentId == dto.DepartmentId.Value &&
-                        d.IsActive);
+                        d.IsActive && !d.IsDeleted);
 
                 if (!departmentExists)
                 {
@@ -212,11 +271,19 @@ namespace ServiceRequestManagementSystem.API.Controllers
             user.FullName = dto.FullName.Trim();
             user.Role = dto.Role;
             user.DepartmentId = dto.DepartmentId;
-            user.Phone = string.IsNullOrWhiteSpace(dto.Phone)
-                ? null
-                : dto.Phone.Trim();
+            user.Phone = string.IsNullOrWhiteSpace(dto.Phone) ? null : dto.Phone.Trim();
             user.Status = dto.Status;
             user.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = user.UserId,
+                Action = "User Updated",
+                TargetType = "User",
+                TargetId = user.UserId.ToString(),
+                TargetDisplay = user.FullName,
+                CreatedAt = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
 
@@ -235,10 +302,11 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResponseDto<object>>> DeleteUser(int id)
         {
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.UserId == id);
+                .FirstOrDefaultAsync(u => u.UserId == id && !u.IsDeleted);
 
             if (user == null)
             {
@@ -253,6 +321,16 @@ namespace ServiceRequestManagementSystem.API.Controllers
             user.IsDeleted = true;
             user.DeletedAt = DateTime.UtcNow;
             user.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorUserId = user.UserId,
+                Action = "User Deleted",
+                TargetType = "User",
+                TargetId = user.UserId.ToString(),
+                TargetDisplay = user.FullName,
+                CreatedAt = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
 

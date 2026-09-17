@@ -67,6 +67,8 @@ CREATE TABLE dbo.Users (
     EmployeeId VARCHAR(20) NOT NULL,
     FullName NVARCHAR(100) NOT NULL,
     Email NVARCHAR(256) NOT NULL,
+    PasswordHash NVARCHAR(256) NOT NULL DEFAULT '',
+    PasswordSalt NVARCHAR(256) NOT NULL DEFAULT '',
     Role VARCHAR(20) NOT NULL DEFAULT 'Requestor' CHECK (Role IN ('Admin', 'HOD', 'Technician', 'Requestor')),
     DepartmentId INT NULL,
     Phone NVARCHAR(20) NULL,

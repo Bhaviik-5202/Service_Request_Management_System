@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ServiceRequestManagementSystem.API.Data;
@@ -11,6 +12,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class AssetsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -76,6 +78,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Technician")]
         public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> CreateAsset(
             CreateAssetDto dto)
         {
@@ -186,6 +189,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Technician")]
         public async Task<ActionResult<ApiResponseDto<AssetResponseDto>>> UpdateAsset(
             int id,
             UpdateAssetDto dto)
@@ -280,6 +284,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,Technician")]
         public async Task<ActionResult<ApiResponseDto<bool>>> DeleteAsset(
             int id)
         {
@@ -317,6 +322,7 @@ namespace ServiceRequestManagementSystem.API.Controllers
         }
 
         [HttpPut("{id}/assign")]
+        [Authorize(Roles = "Admin,Technician")]
         public async Task<ActionResult<ApiResponseDto<bool>>> AssignAsset(
             int id,
             AssignAssetDto dto)
