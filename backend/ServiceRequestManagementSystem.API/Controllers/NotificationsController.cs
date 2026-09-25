@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ServiceRequestManagementSystem.API.Data;
 using ServiceRequestManagementSystem.API.DTOs.Common;
 using ServiceRequestManagementSystem.API.DTOs.Notifications;
+using ServiceRequestManagementSystem.API.Services.Interfaces;
 
 namespace ServiceRequestManagementSystem.API.Controllers
 {
@@ -12,114 +11,42 @@ namespace ServiceRequestManagementSystem.API.Controllers
     [Authorize]
     public class NotificationsController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public NotificationsController(AppDbContext context)
+        public NotificationsController(INotificationService notificationService)
         {
-            _context = context;
+            _notificationService = notificationService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponseDto<IEnumerable<NotificationResponseDto>>>> GetNotifications(
-            int userId)
+        public async Task<ActionResult<ApiResponseDto<IEnumerable<NotificationResponseDto>>>> GetNotifications([FromQuery] int userId)
         {
-            var notifications = await _context.Notifications
-                .AsNoTracking()
-                .Where(n => n.UserId == userId)
-                .OrderByDescending(n => n.CreatedAt)
-                .Select(n => new NotificationResponseDto
-                {
-                    NotificationId = n.NotificationId,
-                    UserId = n.UserId,
-                    Title = n.Title,
-                    Message = n.Message,
-                    IsRead = n.IsRead,
-                    NotificationType = n.NotificationType,
-                    CreatedAt = n.CreatedAt
-                })
-                .ToListAsync();
-
-            return Ok(new ApiResponseDto<IEnumerable<NotificationResponseDto>>
-            {
-                Success = true,
-                Message = "Notifications fetched successfully.",
-                Data = notifications
-            });
+            var result = await _notificationService.GetNotificationsAsync(userId);
+            return Ok(result);
         }
 
         [HttpGet("unread-count")]
-        public async Task<ActionResult<ApiResponseDto<int>>> GetUnreadCount(
-            int userId)
+        public async Task<ActionResult<ApiResponseDto<int>>> GetUnreadCount([FromQuery] int userId)
         {
-            var count = await _context.Notifications
-                .AsNoTracking()
-                .CountAsync(n =>
-                    n.UserId == userId &&
-                    !n.IsRead);
-
-            return Ok(new ApiResponseDto<int>
-            {
-                Success = true,
-                Message = "Unread notification count fetched successfully.",
-                Data = count
-            });
+            var result = await _notificationService.GetUnreadCountAsync(userId);
+            return Ok(result);
         }
 
         [HttpPut("{id}/read")]
-        public async Task<ActionResult<ApiResponseDto<bool>>> MarkAsRead(
-            int id,
-            int userId)
+        public async Task<ActionResult<ApiResponseDto<bool>>> MarkAsRead(int id, [FromQuery] int userId)
         {
-            var notification = await _context.Notifications
-                .FirstOrDefaultAsync(n =>
-                    n.NotificationId == id &&
-                    n.UserId == userId);
+            var result = await _notificationService.MarkAsReadAsync(id, userId);
+            if (!result.Success)
+                return NotFound(result);
 
-            if (notification == null)
-            {
-                return NotFound(new ApiResponseDto<bool>
-                {
-                    Success = false,
-                    Message = "Notification not found.",
-                    Data = false
-                });
-            }
-
-            notification.IsRead = true;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new ApiResponseDto<bool>
-            {
-                Success = true,
-                Message = "Notification marked as read.",
-                Data = true
-            });
+            return Ok(result);
         }
 
         [HttpPut("read-all")]
-        public async Task<ActionResult<ApiResponseDto<bool>>> MarkAllAsRead(
-            int userId)
+        public async Task<ActionResult<ApiResponseDto<bool>>> MarkAllAsRead([FromQuery] int userId)
         {
-            var notifications = await _context.Notifications
-                .Where(n =>
-                    n.UserId == userId &&
-                    !n.IsRead)
-                .ToListAsync();
-
-            foreach (var notification in notifications)
-            {
-                notification.IsRead = true;
-            }
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new ApiResponseDto<bool>
-            {
-                Success = true,
-                Message = "All notifications marked as read.",
-                Data = true
-            });
+            var result = await _notificationService.MarkAllAsReadAsync(userId);
+            return Ok(result);
         }
     }
 }

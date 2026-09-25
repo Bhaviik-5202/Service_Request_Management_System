@@ -1,11 +1,8 @@
-using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ServiceRequestManagementSystem.API.Data;
 using ServiceRequestManagementSystem.API.DTOs.Common;
 using ServiceRequestManagementSystem.API.DTOs.UserSettings;
-using ServiceRequestManagementSystem.API.Models;
+using ServiceRequestManagementSystem.API.Services.Interfaces;
 
 namespace ServiceRequestManagementSystem.API.Controllers
 {
@@ -14,120 +11,36 @@ namespace ServiceRequestManagementSystem.API.Controllers
     [Authorize]
     public class UserSettingsController : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly IValidator<UserSettingsDto> _validator;
+        private readonly IUserSettingsService _userSettingsService;
 
-        public UserSettingsController(
-            AppDbContext context,
-            IValidator<UserSettingsDto> validator)
+        public UserSettingsController(IUserSettingsService userSettingsService)
         {
-            _context = context;
-            _validator = validator;
+            _userSettingsService = userSettingsService;
         }
 
         [HttpGet("{userId}")]
-        public async Task<ActionResult<ApiResponseDto<UserSettingsDto>>> GetSettings(
-            int userId)
+        public async Task<ActionResult<ApiResponseDto<UserSettingsDto>>> GetSettings(int userId)
         {
-            var settings = await _context.UserSettings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.UserId == userId);
+            var result = await _userSettingsService.GetSettingsAsync(userId);
+            if (!result.Success)
+                return NotFound(result);
 
-            if (settings == null)
-            {
-                return NotFound(new ApiResponseDto<UserSettingsDto>
-                {
-                    Success = false,
-                    Message = "User settings not found.",
-                    Data = null
-                });
-            }
-
-            var data = new UserSettingsDto
-            {
-                UserId = settings.UserId,
-                Theme = settings.Theme,
-                TwoFactorEnabled = settings.TwoFactorEnabled,
-                NotifyRequestUpdates = settings.NotifyRequestUpdates,
-                NotifyApprovalAlerts = settings.NotifyApprovalAlerts,
-                NotifySLAWarnings = settings.NotifySLAWarnings,
-                NotifyAssetEvents = settings.NotifyAssetEvents,
-                NotifyEmailDigest = settings.NotifyEmailDigest
-            };
-
-            return Ok(new ApiResponseDto<UserSettingsDto>
-            {
-                Success = true,
-                Message = "User settings fetched successfully.",
-                Data = data
-            });
+            return Ok(result);
         }
 
         [HttpPut("{userId}")]
-        public async Task<ActionResult<ApiResponseDto<UserSettingsDto>>> UpdateSettings(
-            int userId,
-            UserSettingsDto dto)
+        public async Task<ActionResult<ApiResponseDto<UserSettingsDto>>> UpdateSettings(int userId, [FromBody] UserSettingsDto dto)
         {
-            dto.UserId = userId;
-
-            var validation = await _validator.ValidateAsync(dto);
-
-            if (!validation.IsValid)
+            var result = await _userSettingsService.UpdateSettingsAsync(userId, dto);
+            if (!result.Success)
             {
-                return BadRequest(new ApiResponseDto<UserSettingsDto>
-                {
-                    Success = false,
-                    Message = validation.Errors.First().ErrorMessage,
-                    Data = null
-                });
+                if (result.Message == "User not found.")
+                    return NotFound(result);
+
+                return BadRequest(result);
             }
 
-            var userExists = await _context.Users
-                .AsNoTracking()
-                .AnyAsync(u => u.UserId == userId);
-
-            if (!userExists)
-            {
-                return NotFound(new ApiResponseDto<UserSettingsDto>
-                {
-                    Success = false,
-                    Message = "User not found.",
-                    Data = null
-                });
-            }
-
-            var settings = await _context.UserSettings
-                .FirstOrDefaultAsync(s => s.UserId == userId);
-
-            if (settings == null)
-            {
-                settings = new UserSettings
-                {
-                    UserId = userId
-                };
-
-                _context.UserSettings.Add(settings);
-            }
-
-            settings.Theme = dto.Theme.Trim().ToLowerInvariant();
-            settings.TwoFactorEnabled = dto.TwoFactorEnabled;
-            settings.NotifyRequestUpdates = dto.NotifyRequestUpdates;
-            settings.NotifyApprovalAlerts = dto.NotifyApprovalAlerts;
-            settings.NotifySLAWarnings = dto.NotifySLAWarnings;
-            settings.NotifyAssetEvents = dto.NotifyAssetEvents;
-            settings.NotifyEmailDigest = dto.NotifyEmailDigest;
-            settings.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            dto.Theme = settings.Theme;
-
-            return Ok(new ApiResponseDto<UserSettingsDto>
-            {
-                Success = true,
-                Message = "User settings updated successfully.",
-                Data = dto
-            });
+            return Ok(result);
         }
     }
 }

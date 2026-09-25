@@ -9,7 +9,11 @@ using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using ServiceRequestManagementSystem.API.Data;
 using ServiceRequestManagementSystem.API.Models;
+using ServiceRequestManagementSystem.API.Repositories.Implementations;
+using ServiceRequestManagementSystem.API.Repositories.Interfaces;
 using ServiceRequestManagementSystem.API.Services;
+using ServiceRequestManagementSystem.API.Services.Implementations;
+using ServiceRequestManagementSystem.API.Services.Interfaces;
 using ServiceRequestManagementSystem.API.Validator;
 
 namespace ServiceRequestManagementSystem.API
@@ -35,7 +39,7 @@ namespace ServiceRequestManagementSystem.API
                 });
             });
 
-            // Password Hasher Service
+            // Password Hasher & Token Services
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
             // JWT Settings & Token Service
@@ -69,6 +73,23 @@ namespace ServiceRequestManagementSystem.API
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(
                     builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            // Repository & Unit of Work Layer
+            builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            // Business Service Layer
+            builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IUserSettingsService, UserSettingsService>();
+            builder.Services.AddScoped<IMasterService, MasterService>();
+            builder.Services.AddScoped<IServiceRequestService, ServiceRequestService>();
+            builder.Services.AddScoped<IApprovalService, ApprovalService>();
+            builder.Services.AddScoped<IAssetService, AssetService>();
+            builder.Services.AddScoped<IDashboardService, DashboardService>();
+            builder.Services.AddScoped<IReportService, ReportService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
             // FluentValidation
             builder.Services.AddValidatorsFromAssemblyContaining<CreateUserDtoValidator>();
