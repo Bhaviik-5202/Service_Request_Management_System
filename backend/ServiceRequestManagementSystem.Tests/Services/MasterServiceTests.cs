@@ -1,8 +1,11 @@
 using FluentAssertions;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 using ServiceRequestManagementSystem.API.DTOs.Masters;
 using ServiceRequestManagementSystem.API.Models;
 using ServiceRequestManagementSystem.API.Repositories.Implementations;
 using ServiceRequestManagementSystem.API.Services.Implementations;
+using ServiceRequestManagementSystem.API.Services.Interfaces;
 using ServiceRequestManagementSystem.Tests.Helpers;
 using Xunit;
 
@@ -10,13 +13,20 @@ namespace ServiceRequestManagementSystem.Tests.Services
 {
     public class MasterServiceTests
     {
+        private static ICacheService CreateCacheService()
+        {
+            var memoryCache = new MemoryCache(new MemoryCacheOptions());
+            return new MemoryCacheService(memoryCache, NullLogger<MemoryCacheService>.Instance);
+        }
+
         [Fact]
         public async Task Department_CRUD_ShouldPerformSuccessfully()
         {
             // Arrange
             using var context = TestDbContextFactory.CreateInMemoryDbContext();
             var uow = new UnitOfWork(context);
-            var service = new MasterService(uow, context);
+            var cache = CreateCacheService();
+            var service = new MasterService(uow, context, cache);
 
             // Create
             var createResult = await service.CreateDepartmentAsync(new DepartmentDto
@@ -60,7 +70,8 @@ namespace ServiceRequestManagementSystem.Tests.Services
             // Arrange
             using var context = TestDbContextFactory.CreateInMemoryDbContext();
             var uow = new UnitOfWork(context);
-            var service = new MasterService(uow, context);
+            var cache = CreateCacheService();
+            var service = new MasterService(uow, context, cache);
 
             // Create
             var createResult = await service.CreateStatusAsync(new StatusDto
@@ -84,7 +95,8 @@ namespace ServiceRequestManagementSystem.Tests.Services
             // Arrange
             using var context = TestDbContextFactory.CreateInMemoryDbContext();
             var uow = new UnitOfWork(context);
-            var service = new MasterService(uow, context);
+            var cache = CreateCacheService();
+            var service = new MasterService(uow, context, cache);
 
             // Create Service Type
             var stResult = await service.CreateServiceTypeAsync(new ServiceTypeDto

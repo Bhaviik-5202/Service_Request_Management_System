@@ -12,29 +12,39 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
     {
         private readonly IUnitOfWork _uow;
         private readonly AppDbContext _context;
+        private readonly ICacheService _cache;
 
-        public MasterService(IUnitOfWork uow, AppDbContext context)
+        private const string CacheKeyStatuses = "master_statuses";
+        private const string CacheKeyDepartments = "master_departments";
+        private const string CacheKeyServiceTypes = "master_servicetypes";
+        private const string CacheKeyPrefixRequestTypes = "master_requesttypes_";
+
+        public MasterService(IUnitOfWork uow, AppDbContext context, ICacheService cache)
         {
             _uow = uow;
             _context = context;
+            _cache = cache;
         }
 
         // ─────────────── STATUSES ───────────────
 
         public async Task<ApiResponseDto<IEnumerable<StatusDto>>> GetStatusesAsync()
         {
-            var statuses = await _context.ServiceRequestStatuses
-                .AsNoTracking()
-                .OrderBy(s => s.StatusId)
-                .Select(s => new StatusDto
-                {
-                    StatusId = s.StatusId,
-                    StatusName = s.StatusName,
-                    ColorCode = s.ColorCode,
-                    Description = s.Description,
-                    IsActive = s.IsActive
-                })
-                .ToListAsync();
+            var statuses = await _cache.GetOrCreateAsync(CacheKeyStatuses, async () =>
+            {
+                return await _context.ServiceRequestStatuses
+                    .AsNoTracking()
+                    .OrderBy(s => s.StatusId)
+                    .Select(s => new StatusDto
+                    {
+                        StatusId = s.StatusId,
+                        StatusName = s.StatusName,
+                        ColorCode = s.ColorCode,
+                        Description = s.Description,
+                        IsActive = s.IsActive
+                    })
+                    .ToListAsync();
+            }, TimeSpan.FromMinutes(30));
 
             return Ok("Statuses retrieved successfully.", (IEnumerable<StatusDto>)statuses);
         }
@@ -64,6 +74,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             await _uow.ServiceRequestStatuses.AddAsync(status);
             await _uow.SaveChangesAsync();
             dto.StatusId = status.StatusId;
+
+            _cache.Remove(CacheKeyStatuses);
             return Ok("Status created successfully.", dto);
         }
 
@@ -81,6 +93,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             _uow.ServiceRequestStatuses.Update(status);
             await _uow.SaveChangesAsync();
             dto.StatusId = status.StatusId;
+
+            _cache.Remove(CacheKeyStatuses);
             return Ok("Status updated successfully.", dto);
         }
 
@@ -91,6 +105,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             status.IsActive = false;
             _uow.ServiceRequestStatuses.Update(status);
             await _uow.SaveChangesAsync();
+
+            _cache.Remove(CacheKeyStatuses);
             return Ok<object>("Status deactivated successfully.", null!);
         }
 
@@ -98,16 +114,19 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
 
         public async Task<ApiResponseDto<IEnumerable<DepartmentDto>>> GetDepartmentsAsync()
         {
-            var depts = await _context.Departments
-                .AsNoTracking()
-                .Where(d => !d.IsDeleted)
-                .OrderBy(d => d.DepartmentId)
-                .Select(d => new DepartmentDto
-                {
-                    DepartmentId = d.DepartmentId, DepartmentName = d.DepartmentName,
-                    DepartmentCode = d.DepartmentCode, Description = d.Description, IsActive = d.IsActive
-                })
-                .ToListAsync();
+            var depts = await _cache.GetOrCreateAsync(CacheKeyDepartments, async () =>
+            {
+                return await _context.Departments
+                    .AsNoTracking()
+                    .Where(d => !d.IsDeleted)
+                    .OrderBy(d => d.DepartmentId)
+                    .Select(d => new DepartmentDto
+                    {
+                        DepartmentId = d.DepartmentId, DepartmentName = d.DepartmentName,
+                        DepartmentCode = d.DepartmentCode, Description = d.Description, IsActive = d.IsActive
+                    })
+                    .ToListAsync();
+            }, TimeSpan.FromMinutes(30));
 
             return Ok("Departments retrieved successfully.", (IEnumerable<DepartmentDto>)depts);
         }
@@ -142,6 +161,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             await _uow.Departments.AddAsync(dept);
             await _uow.SaveChangesAsync();
             dto.DepartmentId = dept.DepartmentId;
+
+            _cache.Remove(CacheKeyDepartments);
             return Ok("Department created successfully.", dto);
         }
 
@@ -164,6 +185,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             _uow.Departments.Update(dept);
             await _uow.SaveChangesAsync();
             dto.DepartmentId = dept.DepartmentId;
+
+            _cache.Remove(CacheKeyDepartments);
             return Ok("Department updated successfully.", dto);
         }
 
@@ -174,6 +197,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             dept.IsDeleted = true; dept.UpdatedAt = DateTime.UtcNow;
             _uow.Departments.Update(dept);
             await _uow.SaveChangesAsync();
+
+            _cache.Remove(CacheKeyDepartments);
             return Ok<object>("Department deleted successfully.", null!);
         }
 
@@ -230,16 +255,19 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
 
         public async Task<ApiResponseDto<IEnumerable<ServiceTypeDto>>> GetServiceTypesAsync()
         {
-            var types = await _context.ServiceTypes
-                .AsNoTracking()
-                .Where(s => !s.IsDeleted)
-                .OrderBy(s => s.ServiceTypeId)
-                .Select(s => new ServiceTypeDto
-                {
-                    ServiceTypeId = s.ServiceTypeId, ServiceTypeName = s.ServiceTypeName,
-                    ServiceTypeCode = s.ServiceTypeCode, Description = s.Description, IsActive = s.IsActive
-                })
-                .ToListAsync();
+            var types = await _cache.GetOrCreateAsync(CacheKeyServiceTypes, async () =>
+            {
+                return await _context.ServiceTypes
+                    .AsNoTracking()
+                    .Where(s => !s.IsDeleted)
+                    .OrderBy(s => s.ServiceTypeId)
+                    .Select(s => new ServiceTypeDto
+                    {
+                        ServiceTypeId = s.ServiceTypeId, ServiceTypeName = s.ServiceTypeName,
+                        ServiceTypeCode = s.ServiceTypeCode, Description = s.Description, IsActive = s.IsActive
+                    })
+                    .ToListAsync();
+            }, TimeSpan.FromMinutes(30));
 
             return Ok("Service types retrieved successfully.", (IEnumerable<ServiceTypeDto>)types);
         }
@@ -273,6 +301,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             await _uow.ServiceTypes.AddAsync(svcType);
             await _uow.SaveChangesAsync();
             dto.ServiceTypeId = svcType.ServiceTypeId;
+
+            _cache.Remove(CacheKeyServiceTypes);
             return Ok("Service type created successfully.", dto);
         }
 
@@ -295,6 +325,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             _uow.ServiceTypes.Update(svcType);
             await _uow.SaveChangesAsync();
             dto.ServiceTypeId = svcType.ServiceTypeId;
+
+            _cache.Remove(CacheKeyServiceTypes);
             return Ok("Service type updated successfully.", dto);
         }
 
@@ -305,6 +337,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             svcType.IsDeleted = true; svcType.UpdatedAt = DateTime.UtcNow;
             _uow.ServiceTypes.Update(svcType);
             await _uow.SaveChangesAsync();
+
+            _cache.Remove(CacheKeyServiceTypes);
             return Ok<object>("Service type deleted successfully.", null!);
         }
 
@@ -312,22 +346,26 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
 
         public async Task<ApiResponseDto<IEnumerable<RequestTypeDto>>> GetRequestTypesAsync(int? serviceTypeId)
         {
-            var query = _context.RequestTypes
-                .AsNoTracking()
-                .Where(r => !r.IsDeleted);
+            var cacheKey = $"{CacheKeyPrefixRequestTypes}{serviceTypeId?.ToString() ?? "all"}";
+            var types = await _cache.GetOrCreateAsync(cacheKey, async () =>
+            {
+                var query = _context.RequestTypes
+                    .AsNoTracking()
+                    .Where(r => !r.IsDeleted);
 
-            if (serviceTypeId.HasValue)
-                query = query.Where(r => r.ServiceTypeId == serviceTypeId.Value);
+                if (serviceTypeId.HasValue)
+                    query = query.Where(r => r.ServiceTypeId == serviceTypeId.Value);
 
-            var types = await query.OrderBy(r => r.RequestTypeId)
-                .Select(r => new RequestTypeDto
-                {
-                    RequestTypeId = r.RequestTypeId, ServiceTypeId = r.ServiceTypeId,
-                    ServiceTypeName = r.ServiceType != null ? r.ServiceType.ServiceTypeName : null,
-                    RequestTypeName = r.RequestTypeName, Description = r.Description,
-                    RequiresApproval = r.RequiresApproval, IsActive = r.IsActive
-                })
-                .ToListAsync();
+                return await query.OrderBy(r => r.RequestTypeId)
+                    .Select(r => new RequestTypeDto
+                    {
+                        RequestTypeId = r.RequestTypeId, ServiceTypeId = r.ServiceTypeId,
+                        ServiceTypeName = r.ServiceType != null ? r.ServiceType.ServiceTypeName : null,
+                        RequestTypeName = r.RequestTypeName, Description = r.Description,
+                        RequiresApproval = r.RequiresApproval, IsActive = r.IsActive
+                    })
+                    .ToListAsync();
+            }, TimeSpan.FromMinutes(30));
 
             return Ok("Request types retrieved successfully.", (IEnumerable<RequestTypeDto>)types);
         }
@@ -373,6 +411,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             await _uow.SaveChangesAsync();
             dto.RequestTypeId = reqType.RequestTypeId;
             dto.ServiceTypeName = serviceType.ServiceTypeName;
+
+            _cache.RemoveByPrefix(CacheKeyPrefixRequestTypes);
             return Ok("Request type created successfully.", dto);
         }
 
@@ -394,6 +434,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             _uow.RequestTypes.Update(reqType);
             await _uow.SaveChangesAsync();
             dto.RequestTypeId = reqType.RequestTypeId;
+
+            _cache.RemoveByPrefix(CacheKeyPrefixRequestTypes);
             return Ok("Request type updated successfully.", dto);
         }
 
@@ -404,6 +446,8 @@ namespace ServiceRequestManagementSystem.API.Services.Implementations
             reqType.IsDeleted = true; reqType.UpdatedAt = DateTime.UtcNow;
             _uow.RequestTypes.Update(reqType);
             await _uow.SaveChangesAsync();
+
+            _cache.RemoveByPrefix(CacheKeyPrefixRequestTypes);
             return Ok<object>("Request type deleted successfully.", null!);
         }
 

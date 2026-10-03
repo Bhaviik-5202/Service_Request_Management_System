@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using ServiceRequestManagementSystem.API.Data;
+using ServiceRequestManagementSystem.API.Middleware;
 using ServiceRequestManagementSystem.API.Models;
 using ServiceRequestManagementSystem.API.Repositories.Implementations;
 using ServiceRequestManagementSystem.API.Repositories.Interfaces;
@@ -38,6 +39,10 @@ namespace ServiceRequestManagementSystem.API
                           .AllowCredentials();
                 });
             });
+
+            // In-Memory Caching
+            builder.Services.AddMemoryCache();
+            builder.Services.AddSingleton<ICacheService, MemoryCacheService>();
 
             // Password Hasher & Token Services
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
@@ -101,6 +106,10 @@ namespace ServiceRequestManagementSystem.API
             });
 
             var app = builder.Build();
+
+            // Custom Middlewares (Logging & Global Error Handling)
+            app.UseMiddleware<RequestLoggingMiddleware>();
+            app.UseMiddleware<GlobalExceptionMiddleware>();
 
             // Enable CORS before auth
             app.UseCors("AllowFrontend");
