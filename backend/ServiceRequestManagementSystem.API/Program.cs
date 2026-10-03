@@ -34,14 +34,27 @@ namespace ServiceRequestManagementSystem.API
             builder.Services.AddControllers();
 
             // CORS Configuration
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? Array.Empty<string>();
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowFrontend", policy =>
                 {
-                    policy.SetIsOriginAllowed(_ => true)
-                          .AllowAnyMethod()
-                          .AllowAnyHeader()
-                          .AllowCredentials();
+                    if (builder.Environment.IsDevelopment() || allowedOrigins.Length == 0)
+                    {
+                        policy.SetIsOriginAllowed(_ => true)
+                              .AllowAnyMethod()
+                              .AllowAnyHeader()
+                              .AllowCredentials();
+                    }
+                    else
+                    {
+                        policy.WithOrigins(allowedOrigins)
+                              .AllowAnyMethod()
+                              .AllowAnyHeader()
+                              .AllowCredentials();
+                    }
                 });
             });
 
@@ -121,6 +134,9 @@ namespace ServiceRequestManagementSystem.API
 
             // Enable CORS before auth
             app.UseCors("AllowFrontend");
+
+            // Enable Static Files (for attachments stored in wwwroot/uploads)
+            app.UseStaticFiles();
 
             // Scalar API Documentation
             if (app.Environment.IsDevelopment())
