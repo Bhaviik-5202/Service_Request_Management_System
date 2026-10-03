@@ -22,6 +22,7 @@ import {
   technicians,
 } from "@/data/mock";
 import { useAuth, ROLE_PROFILES } from "@/lib/auth";
+import api from "@/lib/api";
 import { Paperclip } from "lucide-react";
 import { useState } from "react";
 
@@ -67,7 +68,7 @@ export function RequestForm({ existing }) {
     toast.success("Attachment removed");
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     const isAssignAllowed = role === "Admin" || role === "HOD";
     const selectedAssignee = isAssignAllowed ? assignee : (existing?.assignee ?? null);
 
@@ -96,13 +97,35 @@ export function RequestForm({ existing }) {
       updateRequest(updatedReq, activeProfile.name, "Request edited");
       toast.success(`Request ${existing.no} updated successfully!`);
     } else {
-      const reqId = String(requests.length + 1042 + Math.floor(Math.random() * 100));
-      const reqNo = `SR-2026-${reqId}`;
+      let reqId = String(requests.length + 1042 + Math.floor(Math.random() * 100));
+      let reqNo = `SR-2026-${reqId}`;
       const isApprovalNeeded = ["Software Request", "Access Request", "Hardware Request"].includes(
         requestType,
       );
 
-      const initialStatus = selectedAssignee ? "Assigned" : "Pending";
+      const priorityMap = { Low: 0, Medium: 1, High: 2, Critical: 3 };
+
+      // Attempt live backend API creation first
+      try {
+        const payload = {
+          requesterUserId: 1,
+          title: data.title,
+          description: data.description,
+          serviceTypeId: 1,
+          requestTypeId: 1,
+          departmentId: 1,
+          priority: priorityMap[priority] ?? 1,
+        };
+        const res = await api.serviceRequests.create(payload);
+        if (res?.success && res.data) {
+          reqId = String(res.data.requestId || res.data.id || reqId);
+          reqNo = res.data.requestNumber || res.data.no || reqNo;
+        }
+      } catch (err) {
+        console.warn("Backend request create fallback to local cache:", err);
+      }
+
+      const initialStatus = isApprovalNeeded ? "Pending" : (selectedAssignee ? "Assigned" : "Pending");
 
       const newReq = {
         id: reqId,

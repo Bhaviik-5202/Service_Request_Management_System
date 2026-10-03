@@ -42,3 +42,6 @@ Desktop.ini
 **/appsettings.Local.json
 [Oo]ut/
 [Pp]ublish/
+
+# Temporary scratch scripts
+scratch/

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { requests, departments, syncLocalStorage } from "@/data/mock";
 import { Can, useAuth, ROLE_PROFILES } from "@/lib/auth";
+import api from "@/lib/api";
 
 export const Route = createFileRoute("/_shell/requests/")({
   validateSearch: (search) => ({
@@ -71,10 +72,39 @@ function RequestsPage() {
   const [sortAsc, setSortAsc] = useState(false);
   const [page, setPage] = useState(1);
   const [techFilter, setTechFilter] = useState("all");
+  const [requestList, setRequestList] = useState(requests);
+  const [departmentList, setDepartmentList] = useState(departments);
+  const [loading, setLoading] = useState(false);
 
-  // Sync localStorage data on mount
+  // Sync and fetch live requests from API
   useEffect(() => {
     syncLocalStorage();
+    let isSubscribed = true;
+    async function loadLiveData() {
+      try {
+        setLoading(true);
+        const [reqRes, deptRes] = await Promise.all([
+          api.serviceRequests.getAll(),
+          api.masters.departments(),
+        ]);
+        if (isSubscribed) {
+          if (reqRes?.success && Array.isArray(reqRes.data) && reqRes.data.length > 0) {
+            setRequestList(reqRes.data);
+          }
+          if (deptRes?.success && Array.isArray(deptRes.data) && deptRes.data.length > 0) {
+            setDepartmentList(deptRes.data.map((d) => d.departmentName || d.name || d));
+          }
+        }
+      } catch (err) {
+        console.warn("Using offline mock requests:", err);
+      } finally {
+        if (isSubscribed) setLoading(false);
+      }
+    }
+    loadLiveData();
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
 
   // Update local states from URL query search parameters
@@ -85,7 +115,7 @@ function RequestsPage() {
   }, [searchParams.status, searchParams.priority, searchParams.department]);
 
   const filtered = useMemo(() => {
-    let list = requests.filter((r) => {
+    let list = requestList.filter((r) => {
       // Role-based filtering
       if (role === "Requestor" && r.requesterEmail !== activeProfile.email) {
         return false;

@@ -25,6 +25,11 @@ namespace ServiceRequestManagementSystem.API
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Configure Logging (Clear EventLog to prevent Win32Exception 8 on Windows)
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+            builder.Logging.AddDebug();
+
             // Controllers
             builder.Services.AddControllers();
 
@@ -124,7 +129,10 @@ namespace ServiceRequestManagementSystem.API
                 app.MapScalarApiReference("/");
             }
 
-            app.UseHttpsRedirection();
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseHttpsRedirection();
+            }
 
             // Health Check Endpoint (accessible without auth for orchestrator/docker probes)
             app.MapHealthChecks("/health");

@@ -34,8 +34,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTheme } from "@/lib/theme";
 import { notifications } from "@/data/mock";
 import { useAuth, ROLE_PROFILES } from "@/lib/auth";
+import api from "@/lib/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 
 const roleIcon = {
   Admin: ShieldCheck,
@@ -56,7 +58,27 @@ export function TopBar() {
   const navigate = useNavigate();
   const { role, setRole, signOut, user } = useAuth();
   const [panelOpen, setPanelOpen] = useState(false);
-  const unread = notifications.filter((n) => !n.read).length;
+  const [liveNotifications, setLiveNotifications] = useState(notifications);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    async function fetchBadge() {
+      try {
+        const res = await api.notifications.getAll();
+        if (isSubscribed && res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setLiveNotifications(res.data);
+        }
+      } catch {
+        // fallback
+      }
+    }
+    fetchBadge();
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
+
+  const unread = liveNotifications.filter((n) => !n.read).length;
   const activeRole = role ?? "Admin";
 
   const currentUser = useMemo(() => {

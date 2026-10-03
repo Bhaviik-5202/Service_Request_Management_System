@@ -80,6 +80,7 @@ import {
   approvals,
 } from "@/data/mock";
 import { useAuth, ROLE_PROFILES } from "@/lib/auth";
+import api from "@/lib/api";
 import { toast } from "sonner";
 import { LandingPage } from "@/components/shared/LandingPage";
 
@@ -117,9 +118,25 @@ const PIE_COLORS = [
 function Dashboard() {
   const { role, user } = useAuth();
   const navigate = useNavigate();
+  const [liveRequests, setLiveRequests] = useState(requests);
 
   useEffect(() => {
     syncLocalStorage();
+    let isSubscribed = true;
+    async function loadLiveDashboard() {
+      try {
+        const res = await api.serviceRequests.getAll();
+        if (isSubscribed && res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setLiveRequests(res.data);
+        }
+      } catch (err) {
+        console.warn("Using offline dashboard requests:", err);
+      }
+    }
+    loadLiveDashboard();
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
 
   const activeProfile = useMemo(() => {
@@ -137,17 +154,17 @@ function Dashboard() {
   // Filter requests based on user role
   const userRequests = useMemo(() => {
     if (role === "Requestor") {
-      return requests.filter((r) => r.requesterEmail === activeProfile.email);
+      return liveRequests.filter((r) => r.requesterEmail === activeProfile.email);
     }
     if (role === "Technician") {
-      return requests.filter((r) => r.assignee === activeProfile.name);
+      return liveRequests.filter((r) => r.assignee === activeProfile.name);
     }
     if (role === "HOD") {
-      return requests.filter((r) => r.department === activeProfile.department);
+      return liveRequests.filter((r) => r.department === activeProfile.department);
     }
     // Admin sees all requests
-    return requests;
-  }, [role, activeProfile]);
+    return liveRequests;
+  }, [role, activeProfile, liveRequests]);
 
   // Compute stats dynamically
   const totalCount = userRequests.length;

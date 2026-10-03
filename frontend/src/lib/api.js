@@ -1,9 +1,9 @@
 // Centralized API Client for ASP.NET Core Web API backend
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://localhost:7001/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5158/api";
 const STORAGE_KEY = "servicedesk.auth";
 
-function getAuthToken() {
+export function getAuthToken() {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -60,6 +60,127 @@ async function request(endpoint, options = {}) {
   }
 }
 
+// Model Normalizers bridging Backend DTOs and Frontend UI structures
+export function normalizeRequest(r) {
+  if (!r) return r;
+  const idStr = String(r.requestId ?? r.id ?? "");
+  const numStr = r.requestNumber || r.no || (idStr ? `SR-2026-${idStr.padStart(4, "0")}` : "");
+  return {
+    ...r,
+    id: idStr,
+    requestId: r.requestId ?? (r.id ? Number(r.id) : undefined),
+    no: numStr,
+    requestNumber: numStr,
+    title: r.title || "",
+    description: r.description || "",
+    serviceType: r.serviceType || "",
+    requestType: r.requestType || "",
+    department: r.department || "",
+    departmentId: r.departmentId,
+    requester: r.requester || "",
+    requesterEmail: r.requesterEmail || "",
+    assignee: r.assignee || null,
+    status: r.status || "Pending",
+    priority: typeof r.priority === "number"
+      ? (["Low", "Medium", "High", "Critical"][r.priority] || "Medium")
+      : (r.priority || "Medium"),
+    created: r.createdAt || r.created || new Date().toISOString(),
+    createdAt: r.createdAt || r.created || new Date().toISOString(),
+    updated: r.updatedAt || r.updated || new Date().toISOString(),
+    updatedAt: r.updatedAt || r.updated || new Date().toISOString(),
+    resolvedAt: r.resolvedAt,
+    replies: (r.replies || []).map((rep, idx) => ({
+      ...rep,
+      id: rep.replyId ?? rep.id ?? idx + 1,
+      replyId: rep.replyId ?? rep.id ?? idx + 1,
+      author: rep.author || "User",
+      role: rep.role || "User",
+      message: rep.message || "",
+      date: rep.createdAt || rep.date || new Date().toISOString(),
+      createdAt: rep.createdAt || rep.date || new Date().toISOString(),
+      status: rep.statusTransition || rep.status,
+    })),
+    timeline: (r.timeline || []).map((t, idx) => ({
+      ...t,
+      id: t.timelineId ?? t.id ?? `t${idx + 1}`,
+      timelineId: t.timelineId ?? t.id ?? idx + 1,
+      status: t.status || "",
+      changedBy: t.changedBy || "",
+      changedAt: t.changedAt || new Date().toISOString(),
+      note: t.note || "",
+    })),
+    attachments: (r.attachments || []).map((a, idx) => ({
+      ...a,
+      id: a.attachmentId ?? a.id ?? String(idx + 1),
+      attachmentId: a.attachmentId ?? a.id ?? idx + 1,
+      name: a.fileName || a.name || "Attachment",
+      fileName: a.fileName || a.name || "Attachment",
+      size: a.fileSizeKB ? `${a.fileSizeKB} KB` : (a.size || "0 KB"),
+      url: a.fileUrl || a.url || "#",
+    })),
+  };
+}
+
+export function normalizeApproval(a) {
+  if (!a) return a;
+  const idStr = String(a.approvalId ?? a.id ?? "");
+  const pMap = ["Low", "Medium", "High", "Critical"];
+  const sMap = ["Pending", "Approved", "Rejected"];
+  return {
+    ...a,
+    id: idStr,
+    approvalId: a.approvalId ?? (a.id ? Number(a.id) : undefined),
+    requestId: String(a.requestId ?? ""),
+    requestNo: a.requestNo || "",
+    title: a.title || "",
+    requester: a.requester || "",
+    department: a.department || "",
+    priority: typeof a.priority === "number" ? (pMap[a.priority] || "Medium") : (a.priority || "Medium"),
+    submitted: a.submittedAt || a.submitted || new Date().toISOString(),
+    status: typeof a.status === "number" ? (sMap[a.status] || "Pending") : (a.status || "Pending"),
+    decidedBy: a.decidedBy || null,
+    decidedAt: a.decidedAt || null,
+    remarks: a.remarks || "",
+  };
+}
+
+export function normalizeAsset(ast) {
+  if (!ast) return ast;
+  const idStr = String(ast.assetId ?? ast.id ?? "");
+  const sMap = ["Available", "In Use", "Maintenance", "Retired"];
+  return {
+    ...ast,
+    id: idStr,
+    assetId: ast.assetId ?? (ast.id ? Number(ast.id) : undefined),
+    tag: ast.assetTag || ast.tag || "",
+    name: ast.assetName || ast.name || "",
+    category: ast.category || "",
+    department: ast.department || "",
+    assignedTo: ast.assignedTo || null,
+    serial: ast.serialNumber || ast.serial || "",
+    status: typeof ast.status === "number" ? (sMap[ast.status] || "In Service") : (ast.status || "In Service"),
+    value: ast.bookValue !== undefined ? Number(ast.bookValue) : (ast.value || 0),
+    warranty: ast.warrantyUntil || ast.warranty || "",
+    purchaseDate: ast.purchaseDate || "",
+  };
+}
+
+export function normalizeNotification(n) {
+  if (!n) return n;
+  return {
+    ...n,
+    id: String(n.notificationId ?? n.id ?? ""),
+    notificationId: n.notificationId ?? (n.id ? Number(n.id) : undefined),
+    title: n.title || "",
+    message: n.message || "",
+    type: n.type || "info",
+    read: n.isRead ?? n.read ?? false,
+    isRead: n.isRead ?? n.read ?? false,
+    timestamp: n.createdAt || n.timestamp || new Date().toISOString(),
+    link: n.link || "/requests",
+  };
+}
+
 export const api = {
   get: (url, options) => request(url, { ...options, method: "GET" }),
   post: (url, body, options) =>
@@ -78,9 +199,10 @@ export const api = {
   },
 
   users: {
-    getAll: (params) => {
+    getAll: async (params) => {
       const qs = new URLSearchParams(params || {}).toString();
-      return api.get(`/users${qs ? `?${qs}` : ""}`);
+      const res = await api.get(`/users${qs ? `?${qs}` : ""}`);
+      return res;
     },
     getById: (id) => api.get(`/users/${id}`),
     create: (data) => api.post("/users", data),
@@ -89,65 +211,175 @@ export const api = {
   },
 
   serviceRequests: {
-    getAll: (params) => {
+    getAll: async (params) => {
       const qs = new URLSearchParams(params || {}).toString();
-      return api.get(`/servicerequests${qs ? `?${qs}` : ""}`);
+      const res = await api.get(`/servicerequests${qs ? `?${qs}` : ""}`);
+      if (res?.success && Array.isArray(res.data)) {
+        res.data = res.data.map(normalizeRequest);
+      }
+      return res;
     },
-    getById: (id) => api.get(`/servicerequests/${id}`),
-    create: (data) => api.post("/servicerequests", data),
+    getById: async (id) => {
+      const res = await api.get(`/servicerequests/${id}`);
+      if (res?.success && res.data) {
+        res.data = normalizeRequest(res.data);
+      }
+      return res;
+    },
+    create: async (data) => {
+      const res = await api.post("/servicerequests", data);
+      if (res?.success && res.data) {
+        res.data = normalizeRequest(res.data);
+      }
+      return res;
+    },
     update: (id, data) => api.put(`/servicerequests/${id}`, data),
     updateStatus: (id, statusData) => api.put(`/servicerequests/${id}/status`, statusData),
     assign: (id, assigneeUserId) => api.put(`/servicerequests/${id}/assign`, { assigneeUserId }),
-    reopen: (id, reason) => api.post(`/servicerequests/${id}/reopen`, { reason }),
-    cancel: (id, reason) => api.post(`/servicerequests/${id}/cancel`, { reason }),
+    reopen: (id) => api.put(`/servicerequests/${id}/reopen`),
+    cancel: (id) => api.put(`/servicerequests/${id}/cancel`),
     addReply: (id, replyData) => api.post(`/servicerequests/${id}/replies`, replyData),
-    addAttachment: (id, attachmentData) => api.post(`/servicerequests/${id}/attachments`, attachmentData),
+    uploadAttachment: (formData) => {
+      let token = null;
+      try {
+        const raw = sessionStorage.getItem("servicedesk.auth") || localStorage.getItem("servicedesk.auth");
+        if (raw) token = JSON.parse(raw)?.token;
+      } catch {}
+      return fetch(`${API_BASE_URL}/servicerequests/attachments/upload`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then((res) => res.json());
+    },
     delete: (id) => api.delete(`/servicerequests/${id}`),
   },
 
   masters: {
     departments: () => api.get("/masters/departments"),
-    serviceTypes: () => api.get("/masters/servicetypes"),
-    requestTypes: () => api.get("/masters/requesttypes"),
+    departmentById: (id) => api.get(`/masters/departments/${id}`),
+    createDepartment: (dto) => api.post("/masters/departments", dto),
+    updateDepartment: (id, dto) => api.put(`/masters/departments/${id}`, dto),
+    deleteDepartment: (id) => api.delete(`/masters/departments/${id}`),
+    serviceTypes: () => api.get("/masters/service-types"),
+    serviceTypeById: (id) => api.get(`/masters/service-types/${id}`),
+    createServiceType: (dto) => api.post("/masters/service-types", dto),
+    updateServiceType: (id, dto) => api.put(`/masters/service-types/${id}`, dto),
+    deleteServiceType: (id) => api.delete(`/masters/service-types/${id}`),
+    requestTypes: (serviceTypeId) =>
+      api.get(`/masters/request-types${serviceTypeId ? `?serviceTypeId=${serviceTypeId}` : ""}`),
+    requestTypeById: (id) => api.get(`/masters/request-types/${id}`),
+    createRequestType: (dto) => api.post("/masters/request-types", dto),
+    updateRequestType: (id, dto) => api.put(`/masters/request-types/${id}`, dto),
+    deleteRequestType: (id) => api.delete(`/masters/request-types/${id}`),
     statuses: () => api.get("/masters/statuses"),
-    technicians: () => api.get("/masters/technicians"),
-    technicianMappings: () => api.get("/masters/technician-mappings"),
+    statusById: (id) => api.get(`/masters/statuses/${id}`),
+    createStatus: (dto) => api.post("/masters/statuses", dto),
+    updateStatus: (id, dto) => api.put(`/masters/statuses/${id}`, dto),
+    deleteStatus: (id) => api.delete(`/masters/statuses/${id}`),
+    personnel: (departmentId) => api.get(`/masters/personnel?departmentId=${departmentId}`),
+    mappings: (requestTypeId) => api.get(`/masters/mappings?requestTypeId=${requestTypeId}`),
   },
 
   approvals: {
-    getAll: (params) => {
+    getAll: async (params) => {
       const qs = new URLSearchParams(params || {}).toString();
-      return api.get(`/approvals${qs ? `?${qs}` : ""}`);
+      const res = await api.get(`/approvals${qs ? `?${qs}` : ""}`);
+      if (res?.success && Array.isArray(res.data)) {
+        res.data = res.data.map(normalizeApproval);
+      }
+      return res;
     },
-    getById: (id) => api.get(`/approvals/${id}`),
+    getById: async (id) => {
+      const res = await api.get(`/approvals/${id}`);
+      if (res?.success && res.data) {
+        res.data = normalizeApproval(res.data);
+      }
+      return res;
+    },
     decide: (id, decision) => api.put(`/approvals/${id}/decision`, decision),
   },
 
   assets: {
-    getAll: (params) => {
+    getAll: async (params) => {
       const qs = new URLSearchParams(params || {}).toString();
-      return api.get(`/assets${qs ? `?${qs}` : ""}`);
+      const res = await api.get(`/assets${qs ? `?${qs}` : ""}`);
+      if (res?.success && Array.isArray(res.data)) {
+        res.data = res.data.map(normalizeAsset);
+      }
+      return res;
     },
-    getById: (id) => api.get(`/assets/${id}`),
+    getById: async (id) => {
+      const res = await api.get(`/assets/${id}`);
+      if (res?.success && res.data) {
+        res.data = normalizeAsset(res.data);
+      }
+      return res;
+    },
     create: (data) => api.post("/assets", data),
     update: (id, data) => api.put(`/assets/${id}`, data),
     delete: (id) => api.delete(`/assets/${id}`),
   },
 
   notifications: {
-    getAll: () => api.get("/notifications"),
-    markRead: (id) => api.put(`/notifications/${id}/read`),
-    markAllRead: () => api.put("/notifications/mark-all-read"),
+    getAll: async (userId) => {
+      let uid = userId;
+      if (!uid) {
+        try {
+          const raw = sessionStorage.getItem("servicedesk.auth") || localStorage.getItem("servicedesk.auth");
+          if (raw) uid = JSON.parse(raw)?.userId;
+        } catch {}
+      }
+      const res = await api.get(`/notifications?userId=${uid || 1}`);
+      if (res?.success && Array.isArray(res.data)) {
+        res.data = res.data.map(normalizeNotification);
+      }
+      return res;
+    },
+    getUnreadCount: (userId) => {
+      let uid = userId;
+      if (!uid) {
+        try {
+          const raw = sessionStorage.getItem("servicedesk.auth") || localStorage.getItem("servicedesk.auth");
+          if (raw) uid = JSON.parse(raw)?.userId;
+        } catch {}
+      }
+      return api.get(`/notifications/unread-count?userId=${uid || 1}`);
+    },
+    markRead: (id, userId) => {
+      let uid = userId;
+      if (!uid) {
+        try {
+          const raw = sessionStorage.getItem("servicedesk.auth") || localStorage.getItem("servicedesk.auth");
+          if (raw) uid = JSON.parse(raw)?.userId;
+        } catch {}
+      }
+      return api.put(`/notifications/${id}/read?userId=${uid || 1}`);
+    },
+    markAllRead: (userId) => {
+      let uid = userId;
+      if (!uid) {
+        try {
+          const raw = sessionStorage.getItem("servicedesk.auth") || localStorage.getItem("servicedesk.auth");
+          if (raw) uid = JSON.parse(raw)?.userId;
+        } catch {}
+      }
+      return api.put(`/notifications/read-all?userId=${uid || 1}`);
+    },
   },
 
   dashboard: {
-    getSummary: () => api.get("/dashboard/summary"),
-    getCharts: () => api.get("/dashboard/charts"),
+    getSummary: (userId) => {
+      const qs = userId ? `?userId=${userId}` : "";
+      return api.get(`/dashboard/summary${qs}`);
+    },
+    getCharts: () => api.get("/reports/trends"),
   },
 
   reports: {
-    getOverview: () => api.get("/reports/overview"),
+    getOverview: () => api.get("/reports/departments"),
+    getDepartments: () => api.get("/reports/departments"),
     getSla: () => api.get("/reports/sla"),
+    getTrends: () => api.get("/reports/trends"),
   },
 
   auditLogs: {

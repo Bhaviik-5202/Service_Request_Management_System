@@ -26,6 +26,7 @@ import {
   deleteUser,
   departments, // Dyn list loaded from departments master
 } from "@/data/mock";
+import api from "@/lib/api";
 
 // Reusable components
 import { ReusableTable } from "@/components/shared/ReusableTable";
@@ -87,13 +88,32 @@ function UsersPage() {
     formState: { errors },
   } = useForm();
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
-    setTimeout(() => {
-      syncLocalStorage();
-      setData([...users]);
-      setLoading(false);
-    }, 250);
+    syncLocalStorage();
+    try {
+      const res = await api.users.getAll();
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped = res.data.map((u) => ({
+          ...u,
+          id: String(u.userId ?? u.id),
+          name: u.fullName || u.name,
+          email: u.email,
+          role: u.role,
+          department: u.departmentName || u.department || "IT",
+          phone: u.phone || "",
+          status: typeof u.status === "number" ? ["Active", "Inactive", "Suspended"][u.status] : (u.status || "Active"),
+          joined: u.joinedDate || u.joined || "2024-01-01",
+        }));
+        setData(mapped);
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("Using offline users cache:", err);
+    }
+    setData([...users]);
+    setLoading(false);
   };
 
   useEffect(() => {

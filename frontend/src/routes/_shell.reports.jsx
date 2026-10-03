@@ -24,7 +24,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { departmentReports, monthlyRequests, resolutionTrend } from "@/data/mock";
+import { departmentReports as seedReports, monthlyRequests, resolutionTrend } from "@/data/mock";
+import api from "@/lib/api";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/reports")({
@@ -49,6 +51,32 @@ const tooltipStyle = {
 };
 
 function ReportsPage() {
+  const [reportsData, setReportsData] = useState(seedReports);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    async function loadReports() {
+      try {
+        const res = await api.reports.getDepartments();
+        if (isSubscribed && res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped = res.data.map((d) => ({
+            department: d.departmentName || "General",
+            total: d.totalRequests || 0,
+            resolved: d.resolvedRequests || 0,
+            avgHours: Math.round(d.avgResolutionTimeHours || 0),
+          }));
+          setReportsData(mapped);
+        }
+      } catch (err) {
+        console.warn("Backend reports fetch fallback:", err);
+      }
+    }
+    loadReports();
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
+
   const exportToast = (fmt) => toast.info(`Export to ${fmt} — UI demo only`);
 
   return (
@@ -185,8 +213,8 @@ function ReportsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {departmentReports.map((d) => {
-                const rate = Math.round((d.resolved / d.total) * 100);
+              {reportsData.map((d) => {
+                const rate = d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 0;
                 return (
                   <TableRow key={d.department}>
                     <TableCell className="text-sm font-semibold">{d.department}</TableCell>

@@ -14,10 +14,36 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requests, users, syncLocalStorage } from "@/data/mock";
+import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_shell/users/$userId")({
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
+    try {
+      const res = await api.users.getById(params.userId);
+      if (res?.success && res.data) {
+        const u = res.data;
+        return {
+          user: {
+            id: String(u.userId),
+            userId: u.userId,
+            name: u.fullName,
+            email: u.email,
+            role: u.role,
+            department: u.departmentName || "IT",
+            phone: u.phone || "—",
+            status: u.isActive ? "Active" : "Inactive",
+            joined: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "Recently",
+            avatar:
+              u.fullName
+                ?.split(" ")
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase() || "US",
+          },
+        };
+      }
+    } catch {}
     syncLocalStorage();
     const user = users.find((u) => u.id === params.userId);
     if (!user) throw notFound();

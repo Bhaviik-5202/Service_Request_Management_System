@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { assets } from "@/data/mock";
+import api from "@/lib/api";
 
 export const Route = createFileRoute("/_shell/assets/")({
   validateSearch: (search) => ({
@@ -43,6 +44,29 @@ function AssetsPage() {
   const searchParams = Route.useSearch();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState(searchParams.status || "all");
+  const [assetList, setAssetList] = useState(assets);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    async function loadAssets() {
+      try {
+        setLoading(true);
+        const res = await api.assets.getAll();
+        if (isSubscribed && res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setAssetList(res.data);
+        }
+      } catch (err) {
+        console.warn("Using offline assets cache:", err);
+      } finally {
+        if (isSubscribed) setLoading(false);
+      }
+    }
+    loadAssets();
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
 
   useEffect(() => {
     setStatus(searchParams.status || "all");
@@ -50,7 +74,7 @@ function AssetsPage() {
 
   const filtered = useMemo(
     () =>
-      assets.filter((a) => {
+      assetList.filter((a) => {
         const q = search.toLowerCase();
         const matches =
           !q ||

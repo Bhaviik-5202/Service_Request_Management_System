@@ -3,13 +3,20 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { RequestForm } from "@/components/requests/RequestForm";
 import { Button } from "@/components/ui/button";
 import { requests, syncLocalStorage } from "@/data/mock";
+import api from "@/lib/api";
 import { useAuth, ROLE_PROFILES } from "@/lib/auth";
 import { useEffect, useMemo } from "react";
 
 export const Route = createFileRoute("/_shell/requests/$requestId/edit")({
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
+    try {
+      const res = await api.serviceRequests.getById(params.requestId);
+      if (res?.success && res.data) {
+        return { request: res.data };
+      }
+    } catch {}
     syncLocalStorage();
-    const request = requests.find((r) => r.id === params.requestId);
+    const request = requests.find((r) => String(r.id) === String(params.requestId) || r.no === params.requestId);
     if (!request) throw notFound();
     return { request };
   },

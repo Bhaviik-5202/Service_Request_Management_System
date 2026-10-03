@@ -33,11 +33,15 @@ namespace ServiceRequestManagementSystem.API.Services
 
         public bool VerifyPassword(string password, string storedHash, string storedSalt)
         {
-            if (string.IsNullOrWhiteSpace(password) ||
-                string.IsNullOrWhiteSpace(storedHash) ||
-                string.IsNullOrWhiteSpace(storedSalt))
+            if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(storedHash))
             {
                 return false;
+            }
+
+            // Legacy / Seed plain-text fallback when salt is not yet generated
+            if (string.IsNullOrWhiteSpace(storedSalt))
+            {
+                return storedHash == password;
             }
 
             try

@@ -37,14 +37,23 @@ import {
 } from "@/components/ui/select";
 import { requests, updateRequest, deleteRequest, technicians, syncLocalStorage } from "@/data/mock";
 import { useAuth, ROLE_PROFILES } from "@/lib/auth";
+import api from "@/lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/requests/$requestId/")({
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
     // Sync first to get fresh data if page is reloaded
     syncLocalStorage();
-    const request = requests.find((r) => r.id === params.requestId);
+    try {
+      const res = await api.serviceRequests.getById(params.requestId);
+      if (res?.success && res.data) {
+        return { request: res.data };
+      }
+    } catch {
+      // Fallback to local storage
+    }
+    const request = requests.find((r) => String(r.id) === String(params.requestId) || r.no === params.requestId);
     if (!request) throw notFound();
     return { request };
   },
@@ -137,9 +146,19 @@ function RequestDetail() {
   const canDelete = isAdmin;
   const canEdit = isAdmin || (isRequestor && request.requesterEmail === activeProfile.email);
 
-  const handleAssignChange = (value) => {
+  const handleAssignChange = async (value) => {
     const assigneeName = value === "unassigned" ? null : value;
     const newStatus = request.status === "Pending" && assigneeName ? "Assigned" : request.status;
+
+    const reqIdNum = Number(request.requestId || request.id);
+    if (!isNaN(reqIdNum) && reqIdNum > 0 && assigneeName) {
+      try {
+        await api.serviceRequests.assign(reqIdNum, 3);
+      } catch (err) {
+        console.warn("Backend assign error:", err);
+      }
+    }
+
     const updatedReq = {
       ...request,
       assignee: assigneeName,
@@ -166,7 +185,28 @@ function RequestDetail() {
     router.invalidate();
   };
 
-  const handleStatusChange = (value) => {
+  const handleStatusChange = async (value) => {
+    const statusMap = {
+      Pending: 1,
+      Assigned: 2,
+      "In Progress": 3,
+      Resolved: 4,
+      Closed: 5,
+      Cancelled: 6,
+      Completed: 4,
+    };
+    const reqIdNum = Number(request.requestId || request.id);
+    if (!isNaN(reqIdNum) && reqIdNum > 0 && statusMap[value]) {
+      try {
+        await api.serviceRequests.updateStatus(reqIdNum, {
+          statusId: statusMap[value],
+          note: `Status updated to ${value}`,
+        });
+      } catch (err) {
+        console.warn("Backend status change error:", err);
+      }
+    }
+
     const updatedReq = {
       ...request,
       status: value,
@@ -207,7 +247,19 @@ function RequestDetail() {
     setModal({ type: "delete" });
   };
 
-  const handleStartWork = () => {
+  const handleStartWork = async () => {
+    const reqIdNum = Number(request.requestId || request.id);
+    if (!isNaN(reqIdNum) && reqIdNum > 0) {
+      try {
+        await api.serviceRequests.updateStatus(reqIdNum, {
+          statusId: 3,
+          note: "Technician began work on the request.",
+        });
+      } catch (err) {
+        console.warn("Backend status update error:", err);
+      }
+    }
+
     const updatedReq = {
       ...request,
       status: "In Progress",
@@ -228,7 +280,19 @@ function RequestDetail() {
     router.invalidate();
   };
 
-  const handleMarkCompleted = () => {
+  const handleMarkCompleted = async () => {
+    const reqIdNum = Number(request.requestId || request.id);
+    if (!isNaN(reqIdNum) && reqIdNum > 0) {
+      try {
+        await api.serviceRequests.updateStatus(reqIdNum, {
+          statusId: 4,
+          note: "Technician marked the request as Resolved.",
+        });
+      } catch (err) {
+        console.warn("Backend status update error:", err);
+      }
+    }
+
     const updatedReq = {
       ...request,
       status: "Completed",
@@ -249,7 +313,16 @@ function RequestDetail() {
     router.invalidate();
   };
 
-  const handleReopen = () => {
+  const handleReopen = async () => {
+    const reqIdNum = Number(request.requestId || request.id);
+    if (!isNaN(reqIdNum) && reqIdNum > 0) {
+      try {
+        await api.serviceRequests.reopen(reqIdNum);
+      } catch (err) {
+        console.warn("Backend reopen error:", err);
+      }
+    }
+
     const nextStatus = request.assignee ? "Assigned" : "Pending";
     const updatedReq = {
       ...request,
@@ -271,12 +344,22 @@ function RequestDetail() {
     router.invalidate();
   };
 
-  const handleConfirmModal = () => {
+  const handleConfirmModal = async () => {
     if (!modal) return;
+    const reqIdNum = Number(request.requestId || request.id);
 
     if (modal.type === "approve") {
       const assigneeName = modalAssignee === "unassigned" ? null : modalAssignee;
       const newStatus = assigneeName ? "Assigned" : "Pending";
+
+      if (!isNaN(reqIdNum) && reqIdNum > 0 && assigneeName) {
+        try {
+          await api.serviceRequests.assign(reqIdNum, 3);
+        } catch (err) {
+          console.warn("Backend assign error:", err);
+        }
+      }
+
       const updatedReq = {
         ...request,
         status: newStatus,
@@ -300,6 +383,14 @@ function RequestDetail() {
       toast.success(assigneeName ? `Approved and assigned to ${assigneeName}` : "Request approved");
       router.invalidate();
     } else if (modal.type === "reject") {
+      if (!isNaN(reqIdNum) && reqIdNum > 0) {
+        try {
+          await api.serviceRequests.cancel(reqIdNum);
+        } catch (err) {
+          console.warn("Backend cancel error:", err);
+        }
+      }
+
       const updatedReq = {
         ...request,
         status: "Cancelled",
@@ -322,6 +413,17 @@ function RequestDetail() {
       toast.success("Request rejected and cancelled");
       router.invalidate();
     } else if (modal.type === "close") {
+      if (!isNaN(reqIdNum) && reqIdNum > 0) {
+        try {
+          await api.serviceRequests.updateStatus(reqIdNum, {
+            statusId: 5,
+            note: "Request closed successfully.",
+          });
+        } catch (err) {
+          console.warn("Backend close error:", err);
+        }
+      }
+
       const updatedReq = {
         ...request,
         status: "Closed",
@@ -330,6 +432,14 @@ function RequestDetail() {
       toast.success("Request status set to Closed");
       router.invalidate();
     } else if (modal.type === "cancel") {
+      if (!isNaN(reqIdNum) && reqIdNum > 0) {
+        try {
+          await api.serviceRequests.cancel(reqIdNum);
+        } catch (err) {
+          console.warn("Backend cancel error:", err);
+        }
+      }
+
       const updatedReq = {
         ...request,
         status: "Cancelled",
@@ -348,12 +458,25 @@ function RequestDetail() {
     setModalAssignee(null);
   };
 
-  const handlePostReply = (e) => {
+  const handlePostReply = async (e) => {
     e.preventDefault();
     const form = e.currentTarget;
     const replyText = form.elements.namedItem("replyMessage").value.trim();
 
     if (!replyText) return;
+
+    const reqIdNum = Number(request.requestId || request.id);
+    if (!isNaN(reqIdNum) && reqIdNum > 0) {
+      try {
+        const authorId = Number(user?.userId || user?.id || 1);
+        await api.serviceRequests.addReply(reqIdNum, {
+          authorUserId: authorId,
+          message: replyText,
+        });
+      } catch (err) {
+        console.warn("Backend reply post error:", err);
+      }
+    }
 
     const newReply = {
       id: Date.now(),

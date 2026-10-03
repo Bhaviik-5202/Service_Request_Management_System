@@ -10,6 +10,7 @@ import {
   markNotificationRead,
   syncLocalStorage,
 } from "@/data/mock";
+import api from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -34,14 +35,35 @@ function NotificationsPage() {
   useEffect(() => {
     syncLocalStorage();
     setItems([...seed]);
+    let isSubscribed = true;
+    async function loadNotifications() {
+      try {
+        const res = await api.notifications.getAll();
+        if (isSubscribed && res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setItems(res.data);
+        }
+      } catch (err) {
+        console.warn("Using offline notifications cache:", err);
+      }
+    }
+    loadNotifications();
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
 
   const unread = items.filter((n) => !n.read).length;
 
   const markAllRead = () => {
     items.forEach((n) => {
-      if (!n.read) markNotificationRead(n.id);
+      if (!n.read) {
+        markNotificationRead(n.id);
+        if (n.notificationId) {
+          api.notifications.markRead(n.notificationId).catch(() => {});
+        }
+      }
     });
+    api.notifications.markAllRead().catch(() => {});
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     toast.success("All notifications marked as read");
   };

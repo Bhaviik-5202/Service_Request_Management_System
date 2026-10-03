@@ -30,6 +30,7 @@ import {
   GitCommit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import api from "@/lib/api";
 
 // Data and CRUD imports
 import {
@@ -192,12 +193,27 @@ function StatusesManager() {
   } = useForm();
 
   // Fetch initial data
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setData([...statuses]);
-      setLoading(false);
-    }, 250);
+    try {
+      const res = await api.masters.statuses();
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped = res.data.map((s) => ({
+          id: String(s.statusId),
+          name: s.statusName,
+          description: s.description || "",
+          color: s.colorClass || "bg-info/10 text-info ring-info/20",
+          isActive: s.isActive ?? true,
+        }));
+        setData(mapped);
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend statuses fetch fallback:", err);
+    }
+    setData([...statuses]);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -589,12 +605,28 @@ function DepartmentsManager() {
     formState: { errors },
   } = useForm();
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setData([...departmentsMaster]);
-      setLoading(false);
-    }, 250);
+    try {
+      const res = await api.masters.departments();
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped = res.data.map((d) => ({
+          id: String(d.departmentId),
+          name: d.departmentName,
+          code: d.departmentCode,
+          headName: d.departmentHead || "Department Head",
+          description: d.description || "",
+          isActive: d.isActive ?? true,
+        }));
+        setData(mapped);
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend departments fetch fallback:", err);
+    }
+    setData([...departmentsMaster]);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -1338,12 +1370,27 @@ function ServiceTypesManager() {
     formState: { errors },
   } = useForm();
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setData([...serviceTypesMaster]);
-      setLoading(false);
-    }, 250);
+    try {
+      const res = await api.masters.serviceTypes();
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped = res.data.map((st) => ({
+          id: String(st.serviceTypeId),
+          name: st.serviceName,
+          code: st.serviceCode,
+          description: st.description || "",
+          isActive: st.isActive ?? true,
+        }));
+        setData(mapped);
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend service types fetch fallback:", err);
+    }
+    setData([...serviceTypesMaster]);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -1692,20 +1739,38 @@ function RequestTypesManager() {
     formState: { errors },
   } = useForm();
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
-    setTimeout(() => {
-      // Map parent service type name
-      const mapped = requestTypesMaster.map((rt) => {
-        const st = serviceTypesMaster.find((x) => x.id === rt.serviceTypeId);
-        return {
-          ...rt,
-          serviceTypeName: st ? st.name : "Unknown Service Type",
-        };
-      });
-      setData(mapped);
-      setLoading(false);
-    }, 250);
+    try {
+      const res = await api.masters.requestTypes();
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped = res.data.map((rt) => ({
+          id: String(rt.requestTypeId),
+          name: rt.requestTypeName,
+          code: rt.requestCode,
+          serviceTypeId: String(rt.serviceTypeId),
+          serviceTypeName: rt.serviceTypeName || "General",
+          priority: rt.defaultPriority !== undefined ? ["Low", "Medium", "High", "Critical"][rt.defaultPriority] : "Medium",
+          slaHours: rt.slaHours || 24,
+          description: rt.description || "",
+          isActive: rt.isActive ?? true,
+        }));
+        setData(mapped);
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend request types fetch fallback:", err);
+    }
+    const mapped = requestTypesMaster.map((rt) => {
+      const st = serviceTypesMaster.find((x) => x.id === rt.serviceTypeId);
+      return {
+        ...rt,
+        serviceTypeName: st ? st.name : "Unknown Service Type",
+      };
+    });
+    setData(mapped);
+    setLoading(false);
   };
 
   useEffect(() => {

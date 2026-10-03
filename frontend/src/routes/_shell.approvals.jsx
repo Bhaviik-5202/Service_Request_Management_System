@@ -34,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { approvals, updateApproval, syncLocalStorage } from "@/data/mock";
 import { Can, useAuth, ROLE_PROFILES } from "@/lib/auth";
+import api from "@/lib/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +52,7 @@ export const Route = createFileRoute("/_shell/approvals")({
 });
 
 function ApprovalsPage() {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const [localApprovals, setLocalApprovals] = useState([]);
   const [dialog, setDialog] = useState(null);
   const [remarks, setRemarks] = useState("");
@@ -61,9 +62,24 @@ function ApprovalsPage() {
   useEffect(() => {
     syncLocalStorage();
     setLocalApprovals([...approvals]);
+    let isSubscribed = true;
+    async function loadApprovals() {
+      try {
+        const res = await api.approvals.getAll();
+        if (isSubscribed && res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setLocalApprovals(res.data);
+        }
+      } catch (err) {
+        console.warn("Using offline approvals cache:", err);
+      }
+    }
+    loadApprovals();
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
 
-  const decide = () => {
+  const decide = async () => {
     if (!dialog) return;
     const activeProfile = role ? ROLE_PROFILES[role] : { name: "Aarav Sharma" };
 
@@ -76,11 +92,28 @@ function ApprovalsPage() {
     };
 
     updateApproval(updatedApproval, activeProfile.name, remarks);
-    toast.success(`${dialog.approval.requestNo} ${dialog.action.toLowerCase()}`);
+
+    // Call live backend API if approvalId exists
+    if (dialog.approval.approvalId) {
+      try {
+        const decisionEnum = dialog.action === "Approved" ? 1 : 2;
+        await api.approvals.decide(dialog.approval.approvalId, {
+          decidedByUserId: user?.userId || 1,
+          decision: decisionEnum,
+          remarks: remarks || "Decision recorded via Portal",
+        });
+      } catch (err) {
+        console.warn("Backend approval decision fallback:", err);
+      }
+    }
+
+    toast.success(`${dialog.approval.requestNo || dialog.approval.title} ${dialog.action.toLowerCase()}`);
 
     // Resync local list
     syncLocalStorage();
-    setLocalApprovals([...approvals]);
+    setLocalApprovals((prev) =>
+      prev.map((item) => (item.id === dialog.approval.id ? updatedApproval : item))
+    );
 
     setDialog(null);
     setRemarks("");

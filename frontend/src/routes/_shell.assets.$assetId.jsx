@@ -6,9 +6,16 @@ import { AssetStatusBadge } from "@/components/shared/badges";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { assets } from "@/data/mock";
+import api from "@/lib/api";
 
 export const Route = createFileRoute("/_shell/assets/$assetId")({
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
+    try {
+      const res = await api.assets.getById(params.assetId);
+      if (res?.success && res.data) {
+        return { asset: res.data };
+      }
+    } catch {}
     const asset = assets.find((a) => a.id === params.assetId);
     if (!asset) throw notFound();
     return { asset };
