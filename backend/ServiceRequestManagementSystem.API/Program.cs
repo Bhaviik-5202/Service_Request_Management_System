@@ -105,6 +105,9 @@ namespace ServiceRequestManagementSystem.API
                 options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
             });
 
+            // Health Checks
+            builder.Services.AddHealthChecks();
+
             var app = builder.Build();
 
             // Custom Middlewares (Logging & Global Error Handling)
@@ -122,6 +125,9 @@ namespace ServiceRequestManagementSystem.API
             }
 
             app.UseHttpsRedirection();
+
+            // Health Check Endpoint (accessible without auth for orchestrator/docker probes)
+            app.MapHealthChecks("/health");
 
             // Authentication & Authorization Middlewares
             app.UseAuthentication();

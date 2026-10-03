@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ServiceRequestManagementSystem.API/ServiceRequestManagementSystem.API.csproj" />
+  <Project Path="ServiceRequestManagementSystem.Tests/ServiceRequestManagementSystem.Tests.csproj" />
+</Solution>

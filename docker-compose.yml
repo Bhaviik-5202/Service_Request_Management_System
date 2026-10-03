@@ -1,0 +1,51 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: srms-sqlserver
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong@Password123!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Password123!' -Q 'SELECT 1' -C || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Password123!' -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - srms-network
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: srms-api
+    restart: unless-stopped
+    ports:
+      - "5158:5158"
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=ServiceRequestDB;User Id=sa;Password=YourStrong@Password123!;TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      Jwt__Key: "SuperSecretKeyForServiceRequestManagementSystem2026!#*"
+      Jwt__Issuer: "ServiceRequestManagementSystem"
+      Jwt__Audience: "ServiceRequestManagementSystemUsers"
+      Jwt__ExpiryMinutes: "120"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - srms-network
+
+networks:
+  srms-network:
+    driver: bridge
+
+volumes:
+  mssql_data:
+    driver: local
